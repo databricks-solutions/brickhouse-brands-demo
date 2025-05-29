@@ -309,4 +309,24 @@ export class InventoryService {
       };
     }
   }
+
+  // Get warehouse inventory for placing orders (branch managers)
+  static async getWarehouseInventory(filters: {
+    category?: string;
+    search?: string;
+  } = {}): Promise<Inventory[]> {
+    try {
+      const params = new URLSearchParams({
+        limit: '100',
+        ...Object.fromEntries(
+          Object.entries(filters).filter(([_, value]) => value != null && value !== '')
+        )
+      });
+
+      const response = await apiClient.get(`/inventory/warehouse?${params}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(handleApiError(error as AxiosError));
+    }
+  }
 } 

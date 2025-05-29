@@ -47,6 +47,7 @@ interface InventoryState {
   setFilters: (filters: Partial<InventoryFilters>) => void;
   clearFilters: () => void;
   fetchInventory: (filters?: InventoryFilters, page?: number, limit?: number) => Promise<void>;
+  fetchWarehouseInventory: (filters?: { category?: string; search?: string }) => Promise<void>;
   fetchKPIData: (filters?: InventoryFilters) => Promise<void>;
   fetchInventoryTrends: (filters?: InventoryFilters) => Promise<void>;
   fetchCategoryDistribution: (filters?: InventoryFilters) => Promise<void>;
@@ -122,6 +123,24 @@ export const useInventoryStore = create<InventoryState>()(
         } catch (error) {
           set({
             error: `Failed to fetch inventory: ${error}`,
+            isLoading: false
+          });
+        }
+      },
+
+      fetchWarehouseInventory: async (filters?: { category?: string; search?: string }) => {
+        set({ isLoading: true, error: null });
+
+        try {
+          const inventory = await InventoryService.getWarehouseInventory(filters || {});
+
+          set({
+            inventory,
+            isLoading: false
+          });
+        } catch (error) {
+          set({
+            error: `Failed to fetch warehouse inventory: ${error}`,
             isLoading: false
           });
         }

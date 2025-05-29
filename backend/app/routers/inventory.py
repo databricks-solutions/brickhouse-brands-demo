@@ -378,3 +378,56 @@ async def get_low_stock_alerts(
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch low stock alerts: {str(e)}"
         )
+
+
+@router.get("/warehouse", response_model=List[dict])
+async def get_warehouse_inventory(
+    category: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+):
+    """Get warehouse inventory for branch managers placing orders - aggregated by product"""
+    try:
+        with get_db_cursor() as cursor:
+            # Build query for warehouse inventory aggregated by product
+            # Use LEFT JOIN to include all products, even those with no warehouse inventory
+            query = """
+                SELECT 
+                    p.product_id,
+                    p.product_name,
+                    p.brand,
+                    p.category,
+                    p.unit_price,
+                    p.package_size,
+                    COALESCE(SUM(i.quantity_cases), 0) as total_quantity_cases,
+                    COALESCE(SUM(i.reserved_cases), 0) as total_reserved_cases,
+                    COALESCE(SUM(i.quantity_cases) - SUM(i.reserved_cases), 0) as available_cases
+                FROM products p
+                LEFT JOIN inventory i ON p.product_id = i.product_id
+                LEFT JOIN stores s ON i.store_id = s.store_id AND s.store_type = 'Warehouse'
+                WHERE 1=1
+            """
+            params = []
+
+            if category and category != "all":
+                query += " AND p.category = %s"
+                params.append(category)
+
+            if search:
+                query += " AND (p.product_name ILIKE %s OR p.brand ILIKE %s)"
+                search_param = f"%{search}%"
+                params.extend([search_param, search_param])
+
+            query += " GROUP BY p.product_id, p.product_name, p.brand, p.category, p.unit_price, p.package_size"
+            query += " ORDER BY p.product_name LIMIT %s"
+            params.append(limit)
+
+            cursor.execute(query, params)
+            inventory_data = cursor.fetchall()
+
+            return [dict(item) for item in inventory_data]
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch warehouse inventory: {str(e)}"
+        )

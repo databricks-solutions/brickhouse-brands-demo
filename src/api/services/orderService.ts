@@ -6,7 +6,8 @@ import {
   ApiResponse,
   User,
   Store,
-  Product
+  Product,
+  OrderCreate
 } from '../types';
 import { AxiosError } from 'axios';
 
@@ -56,7 +57,17 @@ export class OrderService {
     notes?: string;
   }): Promise<ApiResponse<Order>> {
     try {
-      const response = await apiClient.post('/orders', orderData);
+      // Convert camelCase to snake_case for backend
+      const backendOrderData = {
+        from_store_id: orderData.fromStoreId,
+        to_store_id: orderData.toStoreId,
+        product_id: orderData.productId,
+        quantity_cases: orderData.quantityCases,
+        requested_by: orderData.requestedBy,
+        notes: orderData.notes
+      };
+
+      const response = await apiClient.post('/orders', backendOrderData);
       return {
         success: true,
         data: response.data,

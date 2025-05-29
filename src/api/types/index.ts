@@ -60,6 +60,13 @@ export interface Inventory {
   product_name?: string;
   brand?: string;
   category?: string;
+  unit_price?: number;
+  package_size?: string;
+
+  // Aggregated fields from warehouse endpoint
+  total_quantity_cases?: number;
+  total_reserved_cases?: number;
+  available_cases?: number;
 
   // Legacy camelCase compatibility (for backward compatibility)
   inventoryId?: number;
