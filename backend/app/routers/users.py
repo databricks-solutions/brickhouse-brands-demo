@@ -60,7 +60,7 @@ async def get_user(user_id: int):
         raise HTTPException(status_code=500, detail=f"Failed to fetch user: {str(e)}")
 
 
-@router.post("/", response_model=ApiResponse)
+@router.post("", response_model=ApiResponse)
 async def create_user(user_data: UserCreate):
     """Create a new user"""
     try:

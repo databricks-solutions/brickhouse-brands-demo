@@ -73,7 +73,7 @@ async def get_product(product_id: int):
         )
 
 
-@router.post("/", response_model=ApiResponse)
+@router.post("", response_model=ApiResponse)
 async def create_product(product_data: ProductCreate):
     """Create a new product"""
     try:

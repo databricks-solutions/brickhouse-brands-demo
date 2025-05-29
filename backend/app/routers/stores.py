@@ -73,7 +73,7 @@ async def get_store(store_id: int):
         raise HTTPException(status_code=500, detail=f"Failed to fetch store: {str(e)}")
 
 
-@router.post("/", response_model=ApiResponse)
+@router.post("", response_model=ApiResponse)
 async def create_store(store_data: StoreCreate):
     """Create a new store"""
     try:

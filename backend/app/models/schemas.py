@@ -121,13 +121,13 @@ class Order(BaseModel):
 
 
 class OrderCreate(BaseModel):
-    order_number: str
-    from_store_id: Optional[int] = None
+    order_number: Optional[str] = None
+    from_store_id: Optional[int]
     to_store_id: int
     product_id: int
     quantity_cases: int
     requested_by: int
-    notes: Optional[str] = None
+    notes: Optional[str]
 
 
 # User related models

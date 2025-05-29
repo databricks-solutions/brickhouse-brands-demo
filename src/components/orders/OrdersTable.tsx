@@ -123,6 +123,108 @@ export const OrdersTable = () => {
     </div>
   );
 
+  const renderSkeletonRow = () => (
+    <tr className="border-b border-gray-100">
+      <td className="py-3 px-4">
+        <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
+      </td>
+      <td className="py-3 px-4">
+        <div className="space-y-2">
+          <div className="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
+          <div className="h-3 bg-gray-200 rounded animate-pulse w-24"></div>
+        </div>
+      </td>
+      <td className="py-3 px-4">
+        <div className="h-4 bg-gray-200 rounded animate-pulse w-16"></div>
+      </td>
+      <td className="py-3 px-4">
+        <div className="space-y-2">
+          <div className="h-4 bg-gray-200 rounded animate-pulse w-28"></div>
+          <div className="h-3 bg-gray-200 rounded animate-pulse w-20"></div>
+        </div>
+      </td>
+      <td className="py-3 px-4">
+        <div className="h-4 bg-gray-200 rounded animate-pulse w-24"></div>
+      </td>
+      <td className="py-3 px-4">
+        <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
+      </td>
+      <td className="py-3 px-4">
+        <div className="h-6 bg-gray-200 rounded animate-pulse w-16"></div>
+      </td>
+    </tr>
+  );
+
+  const renderEmptyRow = () => (
+    <tr className="border-b border-gray-100">
+      <td className="py-3 px-4">&nbsp;</td>
+      <td className="py-3 px-4">&nbsp;</td>
+      <td className="py-3 px-4">&nbsp;</td>
+      <td className="py-3 px-4">&nbsp;</td>
+      <td className="py-3 px-4">&nbsp;</td>
+      <td className="py-3 px-4">&nbsp;</td>
+      <td className="py-3 px-4">&nbsp;</td>
+    </tr>
+  );
+
+  // Create array of rows to ensure consistent count
+  const getTableRows = () => {
+    const rows = [];
+
+    if (isLoading) {
+      // Show skeleton rows while loading
+      for (let i = 0; i < pageSize; i++) {
+        rows.push(<div key={`skeleton-${i}`}>{renderSkeletonRow()}</div>);
+      }
+    } else {
+      // Show actual order rows
+      orders.forEach((order) => {
+        rows.push(
+          <tr key={order.order_id} className="border-b border-gray-100 hover:bg-gray-50">
+            <td className="py-3 px-4">
+              <span className="font-medium text-blue-600">#{order.order_number}</span>
+            </td>
+            <td className="py-3 px-4">
+              <div>
+                <p className="font-medium text-gray-900">{order.product_name}</p>
+                <p className="text-sm text-gray-600">{order.brand} • {order.category}</p>
+              </div>
+            </td>
+            <td className="py-3 px-4">
+              <span className="font-medium">{order.quantity_cases}</span>
+              <span className="text-gray-600 ml-1">cases</span>
+            </td>
+            <td className="py-3 px-4">
+              <div>
+                <p className="font-medium text-gray-900">{order.to_store_name}</p>
+                <p className="text-sm text-gray-600">{order.to_store_region}</p>
+              </div>
+            </td>
+            <td className="py-3 px-4">
+              <span className="text-gray-900">{order.requester_name}</span>
+            </td>
+            <td className="py-3 px-4">
+              <span className="text-gray-600">{formatDate(order.order_date)}</span>
+            </td>
+            <td className="py-3 px-4">
+              <Badge variant={getStatusBadgeVariant(order.order_status)}>
+                {getStatusText(order.order_status)}
+              </Badge>
+            </td>
+          </tr>
+        );
+      });
+
+      // Fill remaining rows with empty space to maintain consistent height
+      const remainingRows = pageSize - orders.length;
+      for (let i = 0; i < remainingRows; i++) {
+        rows.push(<div key={`empty-${i}`}>{renderEmptyRow()}</div>);
+      }
+    }
+
+    return rows;
+  };
+
   if (error) {
     return (
       <Card>
@@ -156,107 +258,89 @@ export const OrdersTable = () => {
         </div>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-            <span className="ml-2 text-gray-600">Loading orders...</span>
+        {/* Desktop Table - Always show structure */}
+        <div className="hidden md:block overflow-x-auto relative">
+          {/* Loading overlay for desktop */}
+          {isLoading && (
+            <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">
+              <div className="flex items-center">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                <span className="ml-2 text-gray-600">Loading...</span>
+              </div>
+            </div>
+          )}
+
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-3 px-4 font-medium text-gray-900">Order #</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-900">Product</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-900">Quantity</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-900">To Store</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-900">Requested By</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-900">Date</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
+              </tr>
+            </thead>
+            <tbody style={{ minHeight: `${pageSize * 60}px` }}>
+              {getTableRows()}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="md:hidden space-y-3">
+          {isLoading ? (
+            // Show loading state for mobile
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+              <span className="ml-2 text-gray-600">Loading orders...</span>
+            </div>
+          ) : orders.length === 0 ? (
+            <div className="text-center py-12">
+              <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">No orders found</p>
+            </div>
+          ) : (
+            orders.map(renderMobileCard)
+          )}
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+            <div className="text-sm text-gray-600">
+              Page {currentPage} of {totalPages}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1 || isLoading}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages || isLoading}
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        ) : (
-          <>
-            {/* Desktop Table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Order #</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Product</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Quantity</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">To Store</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Requested By</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Date</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.map((order) => (
-                    <tr key={order.order_id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4">
-                        <span className="font-medium text-blue-600">#{order.order_number}</span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div>
-                          <p className="font-medium text-gray-900">{order.product_name}</p>
-                          <p className="text-sm text-gray-600">{order.brand} • {order.category}</p>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="font-medium">{order.quantity_cases}</span>
-                        <span className="text-gray-600 ml-1">cases</span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div>
-                          <p className="font-medium text-gray-900">{order.to_store_name}</p>
-                          <p className="text-sm text-gray-600">{order.to_store_region}</p>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="text-gray-900">{order.requester_name}</span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="text-gray-600">{formatDate(order.order_date)}</span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge variant={getStatusBadgeVariant(order.order_status)}>
-                          {getStatusText(order.order_status)}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+        )}
 
-            {/* Mobile Cards */}
-            <div className="md:hidden space-y-3">
-              {orders.map(renderMobileCard)}
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
-                <div className="text-sm text-gray-600">
-                  Page {currentPage} of {totalPages}
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {orders.length === 0 && !isLoading && (
-              <div className="text-center py-12">
-                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">No orders found</p>
-              </div>
-            )}
-          </>
+        {/* Empty state - only show when not loading and no orders */}
+        {!isLoading && orders.length === 0 && (
+          <div className="text-center py-12 hidden md:block">
+            <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">No orders found</p>
+          </div>
         )}
       </CardContent>
     </Card>

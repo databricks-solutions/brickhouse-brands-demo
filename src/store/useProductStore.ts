@@ -48,8 +48,12 @@ export const useProductStore = create<ProductState>()(
         try {
           const result = await ProductService.getProducts(filters);
 
+          // The backend returns List[Product] directly, not a PaginatedResponse
+          // So we should use result directly if result.data is undefined
+          const products: Product[] = Array.isArray(result) ? result : (result.data || []);
+
           set({
-            products: result.data,
+            products: products,
             isLoading: false
           });
         } catch (error) {
@@ -98,7 +102,8 @@ export const useProductStore = create<ProductState>()(
 
       fetchBrands: async () => {
         try {
-          const brands = await ProductService.getBrands();
+          const brandsList = await ProductService.getBrandsList();
+          const brands = brandsList.map(brand => brand.value);
 
           set({
             brands

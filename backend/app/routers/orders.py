@@ -88,11 +88,22 @@ async def get_orders(
         raise HTTPException(status_code=500, detail=f"Failed to fetch orders: {str(e)}")
 
 
-@router.post("/", response_model=ApiResponse)
+@router.post("", response_model=ApiResponse)
 async def create_order(order_data: OrderCreate):
     """Create a new order"""
     try:
         with get_db_cursor() as cursor:
+            # Generate order_number if not provided
+            if not order_data.order_number:
+                # Get the next order id
+                cursor.execute(
+                    "SELECT COALESCE(MAX(order_id), 0) + 1 as next_id FROM orders"
+                )
+                next_id = cursor.fetchone()["next_id"]
+                order_number = f"ORD{next_id:06d}"
+            else:
+                order_number = order_data.order_number
+
             cursor.execute(
                 """
                 INSERT INTO orders (order_number, from_store_id, to_store_id, product_id, 
@@ -101,7 +112,7 @@ async def create_order(order_data: OrderCreate):
                 RETURNING order_id
             """,
                 (
-                    order_data.order_number,
+                    order_number,
                     order_data.from_store_id,
                     order_data.to_store_id,
                     order_data.product_id,

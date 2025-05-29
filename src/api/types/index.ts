@@ -27,24 +27,49 @@ export interface Store {
 
 // Product types
 export interface Product {
-  productId: number;
-  productName: string;
+  // Backend returns snake_case fields
+  product_id: number;
+  product_name: string;
   brand: string;
   category: string;
-  packageSize: string;
-  unitPrice: number;
-  createdAt: Date;
+  package_size: string;
+  unit_price: number;
+  created_at: Date;
+
+  // Legacy camelCase compatibility (for backward compatibility)
+  productId?: number;
+  productName?: string;
+  packageSize?: string;
+  unitPrice?: number;
+  createdAt?: Date;
 }
 
 // Inventory types
 export interface Inventory {
-  inventoryId: number;
-  productId: number;
-  storeId?: number;
-  quantityCases: number;
-  reservedCases: number;
-  lastUpdated: Date;
+  // Backend returns snake_case fields
+  inventory_id: number;
+  product_id: number;
+  store_id: number;
+  quantity_cases: number;
+  reserved_cases: number;
+  last_updated: Date;
   version: number;
+
+  // Flattened fields from joins (returned by backend in snake_case)
+  store_name?: string;
+  product_name?: string;
+  brand?: string;
+  category?: string;
+
+  // Legacy camelCase compatibility (for backward compatibility)
+  inventoryId?: number;
+  productId?: number;
+  storeId?: number;
+  quantityCases?: number;
+  reservedCases?: number;
+  lastUpdated?: Date;
+
+  // Optional nested objects (for compatibility)
   product?: Product;
   store?: Store;
 }
@@ -226,4 +251,14 @@ export interface LowStockAlert {
   reservedCases: number;
   availableCases: number;
   stockStatus: 'CRITICAL' | 'LOW' | 'NORMAL';
+}
+
+export interface OrderCreate {
+  order_number?: string;
+  from_store_id?: number | null;
+  to_store_id: number;
+  product_id: number;
+  quantity_cases: number;
+  requested_by: number;
+  notes?: string;
 } 
