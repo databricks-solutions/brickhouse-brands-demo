@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,29 +8,74 @@ import { DatePickerWithRange } from "@/components/DateRangePicker";
 import { KPICards } from "@/components/dashboard/KPICards";
 import { InventoryCharts } from "@/components/dashboard/InventoryCharts";
 import { PlaceOrderModal } from "@/components/orders/PlaceOrderModal";
-import { Download, Plus } from "lucide-react";
+import { Download, Plus, Loader2 } from "lucide-react";
+import { useStoreStore } from "@/store/useStoreStore";
+import { useProductStore } from "@/store/useProductStore";
+import { useInventoryStore } from "@/store/useInventoryStore";
 
 const Index = () => {
   const [selectedLocation, setSelectedLocation] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
 
-  const locations = [
-    { value: "all", label: "All Locations" },
-    { value: "northeast", label: "Northeast Region" },
-    { value: "southeast", label: "Southeast Region" },
-    { value: "midwest", label: "Midwest Region" },
-    { value: "west", label: "West Region" },
+  // Get stores and regions from Zustand
+  const { stores, regionOptions, isLoading: isLoadingStores, fetchStores, fetchRegionOptions } = useStoreStore();
+
+  // Get categories from product store
+  const { categoryOptions, isLoadingCategories, fetchCategoryOptions } = useProductStore();
+
+  // Get inventory filters and update functions
+  const { filters, setFilters, fetchKPIData, fetchChartData } = useInventoryStore();
+
+  // Fetch store and region data on mount
+  useEffect(() => {
+    fetchStores();
+    fetchRegionOptions();
+    fetchCategoryOptions();
+  }, [fetchStores, fetchRegionOptions, fetchCategoryOptions]);
+
+  // Update KPI data when filters change
+  useEffect(() => {
+    const currentFilters = {
+      ...filters,
+      region: selectedLocation === "all" ? "all" : selectedLocation,
+      category: selectedCategory === "all" ? "all" : selectedCategory,
+    };
+
+    setFilters(currentFilters);
+
+    // Fetch both KPI and chart data with updated filters
+    Promise.all([
+      fetchKPIData(currentFilters),
+      fetchChartData(currentFilters)
+    ]);
+  }, [selectedLocation, selectedCategory, setFilters, fetchKPIData, fetchChartData]);
+
+  // Build category options from real product data
+  const categoryDropdownOptions = [
+    { value: "all", label: "All Categories" },
+    ...(categoryOptions?.map(category => ({
+      value: category.value,
+      label: category.label
+    })) || [])
   ];
 
-  const categories = [
-    { value: "all", label: "All Categories" },
-    { value: "beverages", label: "Beverages" },
-    { value: "snacks", label: "Snacks" },
-    { value: "dairy", label: "Dairy" },
-    { value: "frozen", label: "Frozen Foods" },
-    { value: "personal-care", label: "Personal Care" },
+  // Build location options from real store data
+  const locationOptions = [
+    // { value: "all", label: "All Regions" },
+    ...(regionOptions?.map(region => ({
+      value: region.value,
+      label: region.label
+    })) || [])
   ];
+
+  const handleLocationChange = (value: string) => {
+    setSelectedLocation(value);
+  };
+
+  const handleCategoryChange = (value: string) => {
+    setSelectedCategory(value);
+  };
 
   const handleExportCSV = () => {
     // Mock CSV export functionality
@@ -54,7 +98,7 @@ const Index = () => {
             <h1 className="text-3xl font-bold text-gray-900">Inventory Management</h1>
             <p className="text-gray-600">Store Manager Dashboard</p>
           </div>
-          
+
           <div className="flex flex-wrap gap-3">
             <Button
               onClick={handleExportCSV}
@@ -80,45 +124,56 @@ const Index = () => {
             <div className="flex flex-wrap gap-4 items-center">
               <div className="flex-1 min-w-[200px]">
                 <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Location
+                  Region
                 </label>
-                <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                <Select value={selectedLocation} onValueChange={handleLocationChange}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {locations.map((location) => (
-                      <SelectItem key={location.value} value={location.value}>
-                        {location.label}
+                    {isLoadingStores ? (
+                      <SelectItem value="loading" disabled>
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading regions...
+                        </div>
                       </SelectItem>
-                    ))}
+                    ) : (
+                      locationOptions.map((location) => (
+                        <SelectItem key={location.value} value={location.value}>
+                          {location.label}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="flex-1 min-w-[200px]">
                 <label className="text-sm font-medium text-gray-700 mb-2 block">
                   Category
                 </label>
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <Select value={selectedCategory} onValueChange={handleCategoryChange}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category.value} value={category.value}>
-                        {category.label}
+                    {isLoadingCategories ? (
+                      <SelectItem value="loading" disabled>
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading categories...
+                        </div>
                       </SelectItem>
-                    ))}
+                    ) : (
+                      categoryDropdownOptions.map((category) => (
+                        <SelectItem key={category.value} value={category.value}>
+                          {category.label}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
-              </div>
-              
-              <div className="flex-1 min-w-[200px]">
-                <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Date Range
-                </label>
-                <DatePickerWithRange />
               </div>
             </div>
           </CardContent>
@@ -131,9 +186,9 @@ const Index = () => {
         <InventoryCharts />
 
         {/* Place Order Modal */}
-        <PlaceOrderModal 
-          isOpen={isOrderModalOpen} 
-          onClose={() => setIsOrderModalOpen(false)} 
+        <PlaceOrderModal
+          isOpen={isOrderModalOpen}
+          onClose={() => setIsOrderModalOpen(false)}
         />
       </div>
     </div>

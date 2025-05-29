@@ -6,9 +6,11 @@ from app.database.connection import get_db_cursor
 router = APIRouter()
 
 
-@router.get("/", response_model=List[User])
+@router.get("", response_model=List[User])
 async def get_users(
-    role: Optional[str] = Query(None), store_id: Optional[int] = Query(None)
+    role: Optional[str] = Query(None),
+    store_id: Optional[int] = Query(None),
+    limit: int = Query(50, ge=1, le=100),
 ):
     """Get users with optional filtering"""
     try:

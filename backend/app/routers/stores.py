@@ -12,7 +12,7 @@ from app.database.connection import get_db_cursor
 router = APIRouter()
 
 
-@router.get("/", response_model=List[Store])
+@router.get("", response_model=List[Store])
 async def get_stores(
     region: Optional[str] = Query(None),
     store_type: Optional[str] = Query(None),

@@ -15,7 +15,7 @@ import math
 router = APIRouter()
 
 
-@router.get("/", response_model=PaginatedResponse)
+@router.get("", response_model=PaginatedResponse)
 async def get_inventory(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
@@ -147,16 +147,17 @@ async def get_kpi_data(
             )
             total_products = cursor.fetchone()["total_products"]
 
-            # Low stock alerts (defined as 10 or fewer available cases)
+            # Low stock alerts - use the dedicated endpoint logic
+            low_stock_threshold = 50
             cursor.execute(
                 f"""
                 SELECT COUNT(*) as low_stock_count
                 FROM inventory i
                 JOIN stores s ON i.store_id = s.store_id
                 JOIN products p ON i.product_id = p.product_id
-                WHERE (i.quantity_cases - i.reserved_cases) <= 10 {condition_str}
+                WHERE (i.quantity_cases - i.reserved_cases) <= %s {condition_str}
             """,
-                params,
+                [low_stock_threshold] + params,
             )
             low_stock_alerts = cursor.fetchone()["low_stock_count"]
 
@@ -332,17 +333,27 @@ async def update_inventory(inventory_id: int, update_data: InventoryUpdate):
 
 @router.get("/alerts/low-stock")
 async def get_low_stock_alerts(
-    region: Optional[str] = Query(None), limit: int = Query(50, ge=1, le=100)
+    region: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=100),
 ):
-    """Get low stock alerts (defined as 10 or fewer available cases)"""
+    """Get low stock alerts (defined as 50 or fewer available cases)"""
+    low_stock_threshold = 50
     try:
         with get_db_cursor() as cursor:
             conditions = []
-            params = [limit]
+            params = []
 
             if region and region != "all":
                 conditions.append(" AND s.region = %s")
                 params.append(region)
+
+            if category and category != "all":
+                conditions.append(" AND p.category = %s")
+                params.append(category)
+
+            # Add limit parameter at the end for the LIMIT clause
+            params.append(limit)
 
             condition_str = "".join(conditions)
 
@@ -350,11 +361,11 @@ async def get_low_stock_alerts(
                 f"""
                 SELECT i.inventory_id, i.store_id, i.product_id, i.quantity_cases,
                        i.reserved_cases, (i.quantity_cases - i.reserved_cases) as available_cases,
-                       s.store_name, p.product_name, p.brand
+                       s.store_name, p.product_name, p.brand, p.category
                 FROM inventory i
                 JOIN stores s ON i.store_id = s.store_id
                 JOIN products p ON i.product_id = p.product_id
-                WHERE (i.quantity_cases - i.reserved_cases) <= 10 {condition_str}
+                WHERE (i.quantity_cases - i.reserved_cases) <= {low_stock_threshold} {condition_str}
                 ORDER BY (i.quantity_cases - i.reserved_cases) ASC
                 LIMIT %s
             """,

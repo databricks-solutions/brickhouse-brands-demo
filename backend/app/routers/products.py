@@ -6,7 +6,7 @@ from app.database.connection import get_db_cursor
 router = APIRouter()
 
 
-@router.get("/", response_model=List[Product])
+@router.get("", response_model=List[Product])
 async def get_products(
     category: Optional[str] = Query(None),
     brand: Optional[str] = Query(None),

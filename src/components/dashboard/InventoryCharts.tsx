@@ -1,84 +1,32 @@
-
+import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   AreaChart,
   Area,
-  ComposedChart,
-  Line,
-  LineChart
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line
 } from "recharts";
+import { Loader2 } from "lucide-react";
+import { useInventoryStore } from "@/store/useInventoryStore";
+import { OrdersTable } from "@/components/orders/OrdersTable";
 
 export const InventoryCharts = () => {
-  // Mock data for charts
-  const inventoryValueData = [
-    { month: "Jan", value: 2200000 },
-    { month: "Feb", value: 2350000 },
-    { month: "Mar", value: 2180000 },
-    { month: "Apr", value: 2420000 },
-    { month: "May", value: 2380000 },
-    { month: "Jun", value: 2400000 },
-  ];
+  const { chartData, fetchChartData, error } = useInventoryStore();
 
-  const turnoverData = [
-    { month: "Jan", days: 45 },
-    { month: "Feb", days: 42 },
-    { month: "Mar", days: 48 },
-    { month: "Apr", days: 40 },
-    { month: "May", days: 44 },
-    { month: "Jun", days: 43 },
-  ];
-
-  const movementData = [
-    { month: "Jan", purchases: 1500000, sales: 1200000, total: 2700000 },
-    { month: "Feb", purchases: 1650000, sales: 1350000, total: 3000000 },
-    { month: "Mar", purchases: 1400000, sales: 1180000, total: 2580000 },
-    { month: "Apr", purchases: 1750000, sales: 1420000, total: 3170000 },
-    { month: "May", purchases: 1600000, sales: 1380000, total: 2980000 },
-    { month: "Jun", purchases: 1700000, sales: 1400000, total: 3100000 },
-  ];
-
-  const salesAnalysisData = [
-    { month: "Jan", sales: 1200000, inventory: 2200000, ratio: 1.83 },
-    { month: "Feb", sales: 1350000, inventory: 2350000, ratio: 1.74 },
-    { month: "Mar", sales: 1180000, inventory: 2180000, ratio: 1.85 },
-    { month: "Apr", sales: 1420000, inventory: 2420000, ratio: 1.70 },
-    { month: "May", sales: 1380000, inventory: 2380000, ratio: 1.72 },
-    { month: "Jun", sales: 1400000, inventory: 2400000, ratio: 1.71 },
-  ];
-
-  const topItemsValue = [
-    { name: "Premium Cola 12pk", value: 245000 },
-    { name: "Organic Chips", value: 185000 },
-    { name: "Greek Yogurt", value: 165000 },
-    { name: "Frozen Pizza", value: 145000 },
-    { name: "Energy Drink", value: 125000 },
-    { name: "Protein Bars", value: 105000 },
-    { name: "Mineral Water", value: 95000 },
-    { name: "Coffee Pods", value: 85000 },
-    { name: "Shampoo", value: 75000 },
-    { name: "Cereal", value: 65000 },
-  ];
-
-  const topItemsQuantity = [
-    { name: "Mineral Water", value: 12500 },
-    { name: "Premium Cola 12pk", value: 9800 },
-    { name: "Energy Drink", value: 8300 },
-    { name: "Coffee Pods", value: 7200 },
-    { name: "Protein Bars", value: 6100 },
-    { name: "Organic Chips", value: 5900 },
-    { name: "Greek Yogurt", value: 4800 },
-    { name: "Cereal", value: 4200 },
-    { name: "Shampoo", value: 3100 },
-    { name: "Frozen Pizza", value: 2900 },
-  ];
+  useEffect(() => {
+    // Fetch chart data when component mounts if not already loaded
+    if (chartData.trends.length === 0 && !chartData.isLoading) {
+      fetchChartData();
+    }
+  }, [fetchChartData, chartData.trends.length, chartData.isLoading]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -89,129 +37,167 @@ export const InventoryCharts = () => {
     }).format(value);
   };
 
-  const formatNumber = (value: number) => {
-    return new Intl.NumberFormat('en-US').format(value);
+  const formatDateString = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
+
+  // Transform trends data for the chart (last 30 days)
+  const inventoryValueData = chartData.trends.map(trend => ({
+    date: formatDateString(trend.date),
+    value: trend.total_value
+  }));
+
+  // Generate mock turnover data since we don't have order/sales data yet
+  const turnoverData = chartData.trends.slice(-6).map((trend, index) => ({
+    date: formatDateString(trend.date),
+    days: 40 + Math.random() * 10 // Mock turnover days between 40-50
+  }));
+
+  // Category distribution for pie chart
+  const categoryData = chartData.categories.map(cat => ({
+    name: cat.category,
+    value: cat.value,
+    percentage: cat.percentage
+  }));
+
+  // Colors for pie chart
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'];
+
+  // Loading state
+  if (chartData.isLoading) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {[1, 2, 3, 4].map((index) => (
+          <Card key={index} className="col-span-1 lg:col-span-2">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-center h-[300px]">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                <span className="ml-2 text-gray-600">Loading chart data...</span>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="col-span-full">
+          <CardContent className="pt-6">
+            <div className="text-center text-red-600">
+              <p className="font-medium">Error loading chart data</p>
+              <p className="text-sm text-gray-600 mt-1">{error}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Inventory Value Over Time */}
       <Card className="col-span-1 lg:col-span-2">
         <CardHeader>
-          <CardTitle>Inventory Value Over Time</CardTitle>
+          <CardTitle>Inventory Value Trends (Last 30 Days)</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={inventoryValueData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis tickFormatter={formatCurrency} />
-              <Tooltip formatter={(value) => [formatCurrency(Number(value)), "Inventory Value"]} />
-              <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-            </BarChart>
+            {inventoryValueData.length > 0 ? (
+              <LineChart data={inventoryValueData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis tickFormatter={formatCurrency} />
+                <Tooltip formatter={(value) => [formatCurrency(Number(value)), "Inventory Value"]} />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  dot={{ fill: '#3b82f6', strokeWidth: 2 }}
+                />
+              </LineChart>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                No trend data available
+              </div>
+            )}
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      {/* Turnover Days by Month */}
+      {/* Category Distribution */}
       <Card>
         <CardHeader>
-          <CardTitle>Turnover Days by Month</CardTitle>
+          <CardTitle>Inventory by Category</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={turnoverData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip formatter={(value) => [value, "Days"]} />
-              <Area type="monotone" dataKey="days" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
-            </AreaChart>
+            {categoryData.length > 0 ? (
+              <PieChart>
+                <Pie
+                  data={categoryData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percentage }) => `${name}: ${percentage}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {categoryData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => [formatCurrency(Number(value)), "Value"]} />
+              </PieChart>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                No category data available
+              </div>
+            )}
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      {/* Inventory Movement */}
+      {/* Turnover Trends */}
       <Card>
         <CardHeader>
-          <CardTitle>Inventory Movement</CardTitle>
+          <CardTitle>Recent Activity Trends</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={movementData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis tickFormatter={formatCurrency} />
-              <Tooltip formatter={(value) => [formatCurrency(Number(value))]} />
-              <Bar dataKey="purchases" fill="#3b82f6" name="Purchases" />
-              <Bar dataKey="sales" fill="#10b981" name="Sales" />
-            </BarChart>
+            {turnoverData.length > 0 ? (
+              <AreaChart data={turnoverData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip formatter={(value) => [value, "Days"]} />
+                <Area
+                  type="monotone"
+                  dataKey="days"
+                  stroke="#10b981"
+                  fill="#10b981"
+                  fillOpacity={0.3}
+                />
+              </AreaChart>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                No activity data available
+              </div>
+            )}
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      {/* Inventory-to-Sales Analysis */}
-      <Card className="col-span-1 lg:col-span-2">
-        <CardHeader>
-          <CardTitle>Inventory-to-Sales Analysis</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <ComposedChart data={salesAnalysisData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis yAxisId="left" tickFormatter={formatCurrency} />
-              <YAxis yAxisId="right" orientation="right" />
-              <Tooltip 
-                formatter={(value, name) => {
-                  if (name === "ratio") return [Number(value).toFixed(2), "I/S Ratio"];
-                  return [formatCurrency(Number(value)), name];
-                }}
-              />
-              <Bar yAxisId="left" dataKey="sales" fill="#10b981" name="Sales" />
-              <Bar yAxisId="left" dataKey="inventory" fill="#3b82f6" name="Inventory" />
-              <Line yAxisId="right" type="monotone" dataKey="ratio" stroke="#f59e0b" strokeWidth={3} name="I/S Ratio" />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      {/* Top 10 Items */}
-      <Card className="col-span-1 lg:col-span-2">
-        <CardHeader>
-          <CardTitle>Top 10 Items</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="value" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="value">By Value</TabsTrigger>
-              <TabsTrigger value="quantity">By Quantity</TabsTrigger>
-            </TabsList>
-            <TabsContent value="value" className="mt-4">
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={topItemsValue} layout="horizontal">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tickFormatter={formatCurrency} />
-                  <YAxis type="category" dataKey="name" width={120} />
-                  <Tooltip formatter={(value) => [formatCurrency(Number(value)), "Value"]} />
-                  <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </TabsContent>
-            <TabsContent value="quantity" className="mt-4">
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={topItemsQuantity} layout="horizontal">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tickFormatter={formatNumber} />
-                  <YAxis type="category" dataKey="name" width={120} />
-                  <Tooltip formatter={(value) => [formatNumber(Number(value)), "Quantity"]} />
-                  <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+      {/* Top Categories by Value - REPLACED WITH ORDERS TABLE */}
+      <div className="col-span-1 lg:col-span-2">
+        <OrdersTable />
+      </div>
     </div>
   );
 };

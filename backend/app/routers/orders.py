@@ -1,28 +1,31 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
-from app.models.schemas import Order, OrderCreate, ApiResponse
+from app.models.schemas import Order, OrderCreate, ApiResponse, PaginatedResponse
 from app.database.connection import get_db_cursor
+import math
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[Order])
+@router.get("", response_model=PaginatedResponse)
 async def get_orders(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
     region: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
-    limit: int = Query(50, ge=1, le=100),
 ):
-    """Get orders with optional filtering"""
+    """Get orders with pagination and optional filtering"""
     try:
         with get_db_cursor() as cursor:
-            query = """
+            # Build base query for orders with joins
+            base_query = """
                 SELECT o.order_id, o.order_number, o.from_store_id, o.to_store_id, 
                        o.product_id, o.quantity_cases, o.order_status, o.requested_by,
                        o.approved_by, o.order_date, o.approved_date, o.fulfilled_date,
                        o.notes, o.version,
-                       ts.store_name as to_store_name,
+                       ts.store_name as to_store_name, ts.region as to_store_region,
                        fs.store_name as from_store_name,
-                       p.product_name,
+                       p.product_name, p.brand, p.category,
                        CONCAT(u.first_name, ' ', u.last_name) as requester_name
                 FROM orders o
                 JOIN stores ts ON o.to_store_id = ts.store_id
@@ -31,23 +34,55 @@ async def get_orders(
                 JOIN users u ON o.requested_by = u.user_id
                 WHERE 1=1
             """
+
+            # Count query for pagination
+            count_query = """
+                SELECT COUNT(*)
+                FROM orders o
+                JOIN stores ts ON o.to_store_id = ts.store_id
+                LEFT JOIN stores fs ON o.from_store_id = fs.store_id
+                JOIN products p ON o.product_id = p.product_id
+                JOIN users u ON o.requested_by = u.user_id
+                WHERE 1=1
+            """
+
             params = []
+            conditions = []
 
             if region and region != "all":
-                query += " AND ts.region = %s"
+                conditions.append(" AND ts.region = %s")
                 params.append(region)
 
             if status and status != "all":
-                query += " AND o.order_status = %s"
+                conditions.append(" AND o.order_status = %s")
                 params.append(status)
 
-            query += " ORDER BY o.order_date DESC LIMIT %s"
-            params.append(limit)
+            # Add conditions to both queries
+            condition_str = "".join(conditions)
+            base_query += condition_str
+            count_query += condition_str
 
-            cursor.execute(query, params)
+            # Get total count
+            cursor.execute(count_query, params)
+            total = cursor.fetchone()["count"]
+
+            # Calculate pagination
+            total_pages = math.ceil(total / limit)
+            offset = (page - 1) * limit
+
+            # Get paginated data
+            base_query += " ORDER BY o.order_date DESC LIMIT %s OFFSET %s"
+            cursor.execute(base_query, params + [limit, offset])
+
             orders = cursor.fetchall()
 
-            return [Order(**order) for order in orders]
+            return PaginatedResponse(
+                data=[dict(order) for order in orders],
+                page=page,
+                total_pages=total_pages,
+                total=total,
+                limit=limit,
+            )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch orders: {str(e)}")
@@ -100,9 +135,9 @@ async def get_order(order_id: int):
                        o.product_id, o.quantity_cases, o.order_status, o.requested_by,
                        o.approved_by, o.order_date, o.approved_date, o.fulfilled_date,
                        o.notes, o.version,
-                       ts.store_name as to_store_name,
+                       ts.store_name as to_store_name, ts.region as to_store_region,
                        fs.store_name as from_store_name,
-                       p.product_name,
+                       p.product_name, p.brand, p.category,
                        CONCAT(u.first_name, ' ', u.last_name) as requester_name
                 FROM orders o
                 JOIN stores ts ON o.to_store_id = ts.store_id

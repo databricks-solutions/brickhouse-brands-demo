@@ -14,6 +14,7 @@ app = FastAPI(
     title="Store Flow Analytics API",
     description="Backend API for Store Flow Analytics Dashboard",
     version="1.0.0",
+    redirect_slashes=False,  # Disable automatic slash redirects
 )
 
 # Configure CORS
