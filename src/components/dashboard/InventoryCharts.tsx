@@ -16,7 +16,6 @@ import {
 } from "recharts";
 import { Loader2 } from "lucide-react";
 import { useInventoryStore } from "@/store/useInventoryStore";
-import { OrdersTable } from "@/components/orders/OrdersTable";
 
 export const InventoryCharts = () => {
   const { chartData, fetchChartData, error } = useInventoryStore();
@@ -68,7 +67,7 @@ export const InventoryCharts = () => {
   if (chartData.isLoading) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {[1, 2, 3, 4].map((index) => (
+        {[1, 2, 3].map((index) => (
           <Card key={index} className="col-span-1 lg:col-span-2">
             <CardContent className="pt-6">
               <div className="flex items-center justify-center h-[300px]">
@@ -193,11 +192,6 @@ export const InventoryCharts = () => {
           </ResponsiveContainer>
         </CardContent>
       </Card>
-
-      {/* Top Categories by Value - REPLACED WITH ORDERS TABLE */}
-      <div className="col-span-1 lg:col-span-2">
-        <OrdersTable />
-      </div>
     </div>
   );
 };

@@ -236,7 +236,7 @@ async def update_order_status(
 
 @router.get("/status/summary")
 async def get_order_status_summary(region: Optional[str] = Query(None)):
-    """Get order status summary"""
+    """Get order status summary with SLA tracking"""
     try:
         with get_db_cursor() as cursor:
             conditions = []
@@ -248,6 +248,7 @@ async def get_order_status_summary(region: Optional[str] = Query(None)):
 
             condition_str = "".join(conditions)
 
+            # Get basic status counts
             cursor.execute(
                 f"""
                 SELECT 
@@ -263,7 +264,41 @@ async def get_order_status_summary(region: Optional[str] = Query(None)):
                 params,
             )
 
-            return cursor.fetchall()
+            status_summary = cursor.fetchall()
+
+            # Get expired SLA count (pending review orders over 2 days old)
+            cursor.execute(
+                f"""
+                SELECT COUNT(*) as expired_sla_count
+                FROM orders o
+                JOIN stores s ON o.to_store_id = s.store_id
+                WHERE o.order_status = 'pending_review' 
+                AND o.order_date < CURRENT_DATE - INTERVAL '2 days' {condition_str}
+            """,
+                params,
+            )
+
+            expired_sla_result = cursor.fetchone()
+            expired_sla_count = (
+                expired_sla_result["expired_sla_count"] if expired_sla_result else 0
+            )
+
+            # Format response for frontend analytics cards
+            result = {
+                "status_counts": {
+                    row["order_status"]: row["count"] for row in status_summary
+                },
+                "expired_sla_count": expired_sla_count,
+                "total_cases": sum(row["total_cases"] for row in status_summary),
+                "summary_period": "last_30_days",
+            }
+
+            # Ensure all status types are present with 0 if not found
+            for status in ["pending_review", "approved", "fulfilled", "cancelled"]:
+                if status not in result["status_counts"]:
+                    result["status_counts"][status] = 0
+
+            return result
 
     except Exception as e:
         raise HTTPException(

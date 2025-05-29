@@ -77,9 +77,9 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
 
   // Get data from stores
   const { products, fetchProducts, isLoading: isLoadingProducts, error: productError } = useProductStore();
-  const { regionOptions, stores, fetchRegionOptions, fetchStores, fetchStoreOptions } = useStoreStore();
+  const { regionOptions, stores, storeOptions, fetchRegionOptions, fetchStores, fetchStoreOptions, isLoading: isLoadingStores } = useStoreStore();
   const { inventory, fetchWarehouseInventory } = useInventoryStore();
-  const { createOrder, isCreatingOrder } = useOrderStore();
+  const { createOrder, isCreatingOrder, fetchOrderStatusSummary, refreshOrders } = useOrderStore();
   const { currentUser, setCurrentUser } = useUserStore();
 
   // Fetch initial data
@@ -87,8 +87,9 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
     if (isOpen) {
       fetchProducts();
       fetchWarehouseInventory(); // Fetch initial warehouse inventory
+      fetchStoreOptions(); // Fetch all available stores for delivery
     }
-  }, [isOpen, fetchProducts, fetchWarehouseInventory]);
+  }, [isOpen, fetchProducts, fetchWarehouseInventory, fetchStoreOptions]);
 
   // Initialize current user (separate useEffect to avoid race condition)
   useEffect(() => {
@@ -237,6 +238,15 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
       return;
     }
 
+    if (!selectedToStore) {
+      toast({
+        title: "No delivery store selected",
+        description: "Please select a target store for delivery.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!currentUser) {
       toast({
         title: "User not found",
@@ -250,22 +260,30 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
       // For now, create orders one by one (could be optimized to batch)
       for (const item of orderItems) {
         await createOrder({
-          fromStoreId: null, // Main warehouse
-          toStoreId: selectedToStore ? parseInt(selectedToStore) : currentUser.storeId || 1,
+          fromStoreId: 1, // Always order from main warehouse (store ID 1)
+          toStoreId: parseInt(selectedToStore),
           productId: item.product.product_id,
           quantityCases: item.quantity,
           requestedBy: currentUser.userId,
-          notes: `Order placed via dashboard for ${item.product.product_name}`
+          notes: `Order placed via dashboard for ${item.product.product_name} - Delivery to ${storeOptions.find(s => s.value === parseInt(selectedToStore))?.label || 'selected store'}`
         });
       }
 
+      const selectedStoreName = storeOptions.find(s => s.value === parseInt(selectedToStore))?.label || 'selected store';
       toast({
         title: "Orders submitted successfully!",
-        description: `${orderItems.length} orders totaling ${formatCurrency(getTotalValue())} have been submitted.`
+        description: `${orderItems.length} orders totaling ${formatCurrency(getTotalValue())} have been submitted for delivery to ${selectedStoreName}.`
       });
+
+      // Refresh the analytics cards to show updated counts
+      await fetchOrderStatusSummary();
+
+      // Refresh the orders table to show the new orders immediately
+      await refreshOrders();
 
       setOrderItems([]);
       setSearchInput("");
+      setSelectedToStore("");
       onClose();
     } catch (error) {
       toast({
@@ -426,6 +444,7 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
                 <CardTitle className="text-lg">Order Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 flex-1 flex flex-col min-h-0">
+                {/* Order Items */}
                 {orderItems.length === 0 ? (
                   <div className="flex-1 flex items-center justify-center">
                     <p className="text-gray-500 text-center py-4">No items in order</p>
@@ -491,18 +510,62 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
                   </>
                 )}
 
+                {/* Store Selection - moved here, below total */}
+                <div className="flex-shrink-0">
+                  <Label htmlFor="target-store" className="text-sm font-medium">
+                    Delivery Store
+                  </Label>
+                  <Select value={selectedToStore} onValueChange={setSelectedToStore}>
+                    <SelectTrigger className={`w-full mt-1 ${!selectedToStore && orderItems.length > 0 ? 'border-orange-300 bg-orange-50' : ''}`}>
+                      <SelectValue placeholder={isLoadingStores ? "Loading stores..." : "Select delivery store"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {storeOptions.map((store) => (
+                        <SelectItem key={store.value} value={store.value.toString()}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{store.label}</span>
+                            <span className="text-xs text-gray-500">{store.region}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedToStore ? (
+                    <p className="text-xs text-gray-600 mt-1">
+                      <MapPin className="h-3 w-3 inline mr-1" />
+                      Orders will be shipped from Main Warehouse to selected store
+                    </p>
+                  ) : orderItems.length > 0 ? (
+                    <p className="text-xs text-orange-600 mt-1">
+                      Please select a delivery store to continue
+                    </p>
+                  ) : null}
+                </div>
+
                 <div className="space-y-2 flex-shrink-0">
                   <Button
                     onClick={submitOrder}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium"
-                    disabled={orderItems.length === 0}
+                    disabled={orderItems.length === 0 || !selectedToStore || isCreatingOrder}
                   >
-                    Submit Order
+                    {isCreatingOrder ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Submitting Orders...
+                      </>
+                    ) : orderItems.length === 0 ? (
+                      'Add items to continue'
+                    ) : !selectedToStore ? (
+                      'Select delivery store to submit'
+                    ) : (
+                      `Submit Order (${orderItems.length} items)`
+                    )}
                   </Button>
                   <Button
                     onClick={onClose}
                     variant="outline"
                     className="w-full"
+                    disabled={isCreatingOrder}
                   >
                     Cancel
                   </Button>

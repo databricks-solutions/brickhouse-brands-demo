@@ -388,4 +388,29 @@ export class OrderService {
       throw new Error(handleApiError(error as AxiosError));
     }
   }
+
+  // Get order status summary with SLA tracking
+  static async getOrderStatusSummary(region?: string): Promise<{
+    status_counts: {
+      pending_review: number;
+      approved: number;
+      fulfilled: number;
+      cancelled: number;
+    };
+    expired_sla_count: number;
+    total_cases: number;
+    summary_period: string;
+  }> {
+    try {
+      const params = new URLSearchParams();
+      if (region && region !== 'all') {
+        params.append('region', region);
+      }
+
+      const response = await apiClient.get(`/orders/status/summary?${params}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(handleApiError(error as AxiosError));
+    }
+  }
 } 

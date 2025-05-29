@@ -3,10 +3,23 @@ import { devtools } from 'zustand/middleware';
 import { Order, OrderFilters, PaginatedResponse } from '../api/types';
 import { OrderService } from '../api/services/orderService';
 
+interface OrderStatusSummary {
+  status_counts: {
+    pending_review: number;
+    approved: number;
+    fulfilled: number;
+    cancelled: number;
+  };
+  expired_sla_count: number;
+  total_cases: number;
+  summary_period: string;
+}
+
 interface OrderState {
   // Data
   orders: Order[];
   selectedOrder: Order | null;
+  statusSummary: OrderStatusSummary | null;
 
   // Pagination
   currentPage: number;
@@ -22,6 +35,7 @@ interface OrderState {
   isLoadingOrder: boolean;
   isCreatingOrder: boolean;
   isUpdatingOrder: boolean;
+  isLoadingStatusSummary: boolean;
 
   // Error states
   error: string | null;
@@ -37,6 +51,7 @@ interface OrderState {
   fetchPendingOrders: (region?: string) => Promise<void>;
   fetchOrdersByRegion: (filters?: { status?: string; dateFrom?: string; dateTo?: string }) => Promise<void>;
   fetchOrderTrendsByRegion: (region?: string, days?: number) => Promise<void>;
+  fetchOrderStatusSummary: (region?: string) => Promise<void>;
   createOrder: (orderData: {
     fromStoreId?: number;
     toStoreId: number;
@@ -68,6 +83,7 @@ export const useOrderStore = create<OrderState>()(
       // Initial state
       orders: [],
       selectedOrder: null,
+      statusSummary: null,
       currentPage: 1,
       totalPages: 0,
       totalItems: 0,
@@ -77,11 +93,16 @@ export const useOrderStore = create<OrderState>()(
       isLoadingOrder: false,
       isCreatingOrder: false,
       isUpdatingOrder: false,
+      isLoadingStatusSummary: false,
       error: null,
 
       // Actions
       setFilters: (filters: Partial<OrderFilters>) => {
-        set({ filters: { ...get().filters, ...filters } });
+        const newFilters = { ...get().filters, ...filters };
+        set({ filters: newFilters, currentPage: 1 }); // Reset to page 1 when filtering
+
+        // Automatically refetch orders with new filters
+        get().fetchOrders(newFilters, 1, get().pageSize);
       },
 
       clearFilters: () => {
@@ -100,6 +121,24 @@ export const useOrderStore = create<OrderState>()(
 
       clearSelectedOrder: () => {
         set({ selectedOrder: null });
+      },
+
+      fetchOrderStatusSummary: async (region?: string) => {
+        set({ isLoadingStatusSummary: true, error: null });
+
+        try {
+          const result = await OrderService.getOrderStatusSummary(region);
+
+          set({
+            statusSummary: result,
+            isLoadingStatusSummary: false
+          });
+        } catch (error) {
+          set({
+            error: `Failed to fetch order status summary: ${error}`,
+            isLoadingStatusSummary: false
+          });
+        }
       },
 
       fetchOrders: async (filters?: OrderFilters, page = 1, limit = 20) => {

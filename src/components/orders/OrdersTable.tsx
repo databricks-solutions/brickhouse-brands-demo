@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ChevronLeft, ChevronRight, Package, Store, User, Calendar } from "lucide-react";
@@ -57,7 +56,8 @@ export const OrdersTable = () => {
     fetchOrders,
     setPage,
     setPageSize,
-    setFilters
+    setFilters,
+    filters: orderFilters
   } = useOrderStore();
 
   // Get the current filters from the inventory store
@@ -66,27 +66,22 @@ export const OrdersTable = () => {
   const [pageSize] = useState(10);
 
   useEffect(() => {
-    // Set the page size in the store and fetch orders with filters
+    // Set the page size in the store
     setPageSize(pageSize);
+  }, [setPageSize, pageSize]);
 
-    // Convert inventory filters to order filters
-    const orderFilters = {
+  useEffect(() => {
+    // Combine inventory filters (region/category) with order filters (status)
+    const combinedFilters = {
       region: inventoryFilters.region,
+      status: orderFilters.status || 'all',
       // Add more filters as needed
     };
 
-    fetchOrders(orderFilters, 1, pageSize);
-  }, [fetchOrders, pageSize, setPageSize, inventoryFilters.region]);
+    fetchOrders(combinedFilters, 1, pageSize);
+  }, [fetchOrders, pageSize, inventoryFilters.region, orderFilters.status]);
 
   const handlePageChange = (newPage: number) => {
-    // Convert inventory filters to order filters
-    const orderFilters = {
-      region: inventoryFilters.region,
-    };
-
-    // Update the order store filters before changing page
-    setFilters(orderFilters);
-
     setPage(newPage);
   };
 
@@ -227,122 +222,103 @@ export const OrdersTable = () => {
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center text-red-600">
-            <p className="font-medium">Error loading orders</p>
-            <p className="text-sm text-gray-600 mt-1">{error}</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="pt-6">
+        <div className="text-center text-red-600">
+          <p className="font-medium">Error loading orders</p>
+          <p className="text-sm text-gray-600 mt-1">{error}</p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <div>
-            <CardTitle>
-              Recent Orders
-              {inventoryFilters.region && inventoryFilters.region !== 'all' && (
-                <span className="text-sm font-normal text-gray-600 ml-2">
-                  ({inventoryFilters.region})
-                </span>
-              )}
-            </CardTitle>
-            <p className="text-sm text-gray-600 mt-1">
-              {totalItems} total orders
-            </p>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {/* Desktop Table - Always show structure */}
-        <div className="hidden md:block overflow-x-auto relative">
-          {/* Loading overlay for desktop */}
-          {isLoading && (
-            <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">
-              <div className="flex items-center">
-                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                <span className="ml-2 text-gray-600">Loading...</span>
-              </div>
-            </div>
-          )}
-
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 font-medium text-gray-900">Order #</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-900">Product</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-900">Quantity</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-900">To Store</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-900">Requested By</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-900">Date</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
-              </tr>
-            </thead>
-            <tbody style={{ minHeight: `${pageSize * 60}px` }}>
-              {getTableRows()}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile Cards */}
-        <div className="md:hidden space-y-3">
-          {isLoading ? (
-            // Show loading state for mobile
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-              <span className="ml-2 text-gray-600">Loading orders...</span>
-            </div>
-          ) : orders.length === 0 ? (
-            <div className="text-center py-12">
-              <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No orders found</p>
-            </div>
-          ) : (
-            orders.map(renderMobileCard)
-          )}
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
-            <div className="text-sm text-gray-600">
-              Page {currentPage} of {totalPages}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1 || isLoading}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages || isLoading}
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+    <div>
+      {/* Desktop Table - Always show structure */}
+      <div className="hidden md:block overflow-x-auto relative">
+        {/* Loading overlay for desktop */}
+        {isLoading && (
+          <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">
+            <div className="flex items-center">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              <span className="ml-2 text-gray-600">Loading...</span>
             </div>
           </div>
         )}
 
-        {/* Empty state - only show when not loading and no orders */}
-        {!isLoading && orders.length === 0 && (
-          <div className="text-center py-12 hidden md:block">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-gray-200">
+              <th className="text-left py-3 px-4 font-medium text-gray-900">Order #</th>
+              <th className="text-left py-3 px-4 font-medium text-gray-900">Product</th>
+              <th className="text-left py-3 px-4 font-medium text-gray-900">Quantity</th>
+              <th className="text-left py-3 px-4 font-medium text-gray-900">To Store</th>
+              <th className="text-left py-3 px-4 font-medium text-gray-900">Requested By</th>
+              <th className="text-left py-3 px-4 font-medium text-gray-900">Date</th>
+              <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
+            </tr>
+          </thead>
+          <tbody style={{ minHeight: `${pageSize * 60}px` }}>
+            {getTableRows()}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-3">
+        {isLoading ? (
+          // Show loading state for mobile
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            <span className="ml-2 text-gray-600">Loading orders...</span>
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="text-center py-12">
             <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">No orders found</p>
           </div>
+        ) : (
+          orders.map(renderMobileCard)
         )}
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+          <div className="flex items-center gap-4 text-sm text-gray-600">
+            <span>Page {currentPage} of {totalPages}</span>
+            <span>•</span>
+            <span>{totalItems} total orders</span>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1 || isLoading}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages || isLoading}
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Empty state - only show when not loading and no orders */}
+      {!isLoading && orders.length === 0 && (
+        <div className="text-center py-12 hidden md:block">
+          <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600">No orders found</p>
+        </div>
+      )}
+    </div>
   );
 }; 

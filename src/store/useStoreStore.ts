@@ -113,7 +113,14 @@ export const useStoreStore = create<StoreState>()(
 
       fetchStoreOptions: async (region) => {
         try {
-          const options = await StoreService.getStoreOptions(region);
+          const apiOptions = await StoreService.getStoreOptions(region);
+
+          // Transform API response to expected format
+          const options = apiOptions.map(store => ({
+            value: store.storeId,
+            label: store.storeName,
+            region: store.region
+          }));
 
           set({
             storeOptions: options

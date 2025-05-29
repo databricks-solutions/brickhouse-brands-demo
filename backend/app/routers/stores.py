@@ -54,6 +54,43 @@ async def get_stores(
         raise HTTPException(status_code=500, detail=f"Failed to fetch stores: {str(e)}")
 
 
+@router.get("/options")
+async def get_store_options(region: Optional[str] = Query(None)):
+    """Get simplified store options for dropdowns"""
+    try:
+        with get_db_cursor() as cursor:
+            query = """
+                SELECT store_id, store_name, store_code, region
+                FROM stores 
+                WHERE 1=1
+            """
+            params = []
+
+            if region and region != "all":
+                query += " AND region = %s"
+                params.append(region)
+
+            query += " ORDER BY region, store_name"
+
+            cursor.execute(query, params)
+            stores = cursor.fetchall()
+
+            return [
+                {
+                    "storeId": store["store_id"],
+                    "storeName": store["store_name"],
+                    "storeCode": store["store_code"],
+                    "region": store["region"],
+                }
+                for store in stores
+            ]
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch store options: {str(e)}"
+        )
+
+
 @router.get("/{store_id}", response_model=Store)
 async def get_store(store_id: int):
     """Get a specific store by ID"""
