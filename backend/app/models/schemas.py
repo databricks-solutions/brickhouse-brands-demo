@@ -118,6 +118,9 @@ class Order(BaseModel):
     from_store_name: Optional[str] = None
     product_name: Optional[str] = None
     requester_name: Optional[str] = None
+    requester_avatar_url: Optional[str] = None
+    approver_name: Optional[str] = None
+    approver_avatar_url: Optional[str] = None
 
 
 class OrderCreate(BaseModel):
@@ -145,6 +148,7 @@ class User(BaseModel):
     role: UserRole
     store_id: Optional[int] = None
     region: Optional[str] = None
+    avatar_url: Optional[str] = None
     created_at: datetime
 
 
@@ -156,6 +160,7 @@ class UserCreate(BaseModel):
     role: UserRole
     store_id: Optional[int] = None
     region: Optional[str] = None
+    avatar_url: Optional[str] = None
 
 
 # Analytics models

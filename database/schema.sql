@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(50) NOT NULL CHECK (role IN ('store_manager', 'regional_manager')),
     store_id INTEGER REFERENCES stores(store_id),
     region VARCHAR(50),
+    avatar_url VARCHAR(500),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

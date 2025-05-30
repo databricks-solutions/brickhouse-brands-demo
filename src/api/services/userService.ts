@@ -17,10 +17,9 @@ export class UserService {
     } = {},
     page: number = 1,
     limit: number = 50
-  ): Promise<PaginatedResponse<User>> {
+  ): Promise<User[]> {
     try {
       const params = new URLSearchParams({
-        page: page.toString(),
         limit: limit.toString(),
         ...Object.fromEntries(
           Object.entries(filters).filter(([_, value]) => value != null && value !== '')

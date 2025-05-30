@@ -17,7 +17,7 @@ async def get_users(
         with get_db_cursor() as cursor:
             query = """
                 SELECT user_id, username, email, first_name, last_name, 
-                       role, store_id, created_at
+                       role, store_id, region, avatar_url, created_at
                 FROM users WHERE 1=1
             """
             params = []
@@ -67,8 +67,8 @@ async def create_user(user_data: UserCreate):
         with get_db_cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO users (username, email, first_name, last_name, role, store_id)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO users (username, email, first_name, last_name, role, store_id, region, avatar_url)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING user_id
             """,
                 (
@@ -78,6 +78,8 @@ async def create_user(user_data: UserCreate):
                     user_data.last_name,
                     user_data.role,
                     user_data.store_id,
+                    user_data.region,
+                    user_data.avatar_url,
                 ),
             )
 

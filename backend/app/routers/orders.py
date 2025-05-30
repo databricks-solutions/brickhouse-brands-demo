@@ -36,12 +36,16 @@ async def get_orders(
                        ts.store_name as to_store_name, ts.region as to_store_region,
                        fs.store_name as from_store_name,
                        p.product_name, p.brand, p.category,
-                       CONCAT(u.first_name, ' ', u.last_name) as requester_name
+                       CONCAT(u.first_name, ' ', u.last_name) as requester_name,
+                       u.avatar_url as requester_avatar_url,
+                       CONCAT(approver.first_name, ' ', approver.last_name) as approver_name,
+                       approver.avatar_url as approver_avatar_url
                 FROM orders o
                 JOIN stores ts ON o.to_store_id = ts.store_id
                 LEFT JOIN stores fs ON o.from_store_id = fs.store_id
                 JOIN products p ON o.product_id = p.product_id
                 JOIN users u ON o.requested_by = u.user_id
+                LEFT JOIN users approver ON o.approved_by = approver.user_id
                 WHERE 1=1
             """
 
@@ -159,12 +163,16 @@ async def get_order(order_id: int):
                        ts.store_name as to_store_name, ts.region as to_store_region,
                        fs.store_name as from_store_name,
                        p.product_name, p.brand, p.category,
-                       CONCAT(u.first_name, ' ', u.last_name) as requester_name
+                       CONCAT(u.first_name, ' ', u.last_name) as requester_name,
+                       u.avatar_url as requester_avatar_url,
+                       CONCAT(approver.first_name, ' ', approver.last_name) as approver_name,
+                       approver.avatar_url as approver_avatar_url
                 FROM orders o
                 JOIN stores ts ON o.to_store_id = ts.store_id
                 LEFT JOIN stores fs ON o.from_store_id = fs.store_id
                 JOIN products p ON o.product_id = p.product_id
                 JOIN users u ON o.requested_by = u.user_id
+                LEFT JOIN users approver ON o.approved_by = approver.user_id
                 WHERE o.order_id = %s
             """,
                 (order_id,),
@@ -368,12 +376,16 @@ async def update_order(order_id: int, request: OrderUpdateRequest):
                        ts.store_name as to_store_name, ts.region as to_store_region,
                        fs.store_name as from_store_name,
                        p.product_name, p.brand, p.category,
-                       CONCAT(u.first_name, ' ', u.last_name) as requester_name
+                       CONCAT(u.first_name, ' ', u.last_name) as requester_name,
+                       u.avatar_url as requester_avatar_url,
+                       CONCAT(approver.first_name, ' ', approver.last_name) as approver_name,
+                       approver.avatar_url as approver_avatar_url
                 FROM orders o
                 JOIN stores ts ON o.to_store_id = ts.store_id
                 LEFT JOIN stores fs ON o.from_store_id = fs.store_id
                 JOIN products p ON o.product_id = p.product_id
                 JOIN users u ON o.requested_by = u.user_id
+                LEFT JOIN users approver ON o.approved_by = approver.user_id
                 WHERE o.order_id = %s
             """,
                 (order_id,),

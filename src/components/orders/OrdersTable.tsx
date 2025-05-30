@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Loader2, ChevronLeft, ChevronRight, Package, Store, User, Calendar, Edit3 } from "lucide-react";
 import { useOrderStore } from "@/store/useOrderStore";
 import { useInventoryStore } from "@/store/useInventoryStore";
@@ -125,7 +126,12 @@ export const OrdersTable = () => {
           <span>{order.to_store_name}</span>
         </div>
         <div className="flex items-center gap-2">
-          <User className="h-4 w-4 text-gray-400" />
+          <UserAvatar
+            avatarUrl={order.requester_avatar_url}
+            firstName={order.requester_name?.split(' ')[0]}
+            lastName={order.requester_name?.split(' ')[1]}
+            size="sm"
+          />
           <span>{order.requester_name}</span>
         </div>
         <div className="flex items-center gap-2">
@@ -218,7 +224,15 @@ export const OrdersTable = () => {
               </div>
             </td>
             <td className="py-3 px-4">
-              <span className="text-gray-900">{order.requester_name}</span>
+              <div className="flex items-center gap-2">
+                <UserAvatar
+                  avatarUrl={order.requester_avatar_url}
+                  firstName={order.requester_name?.split(' ')[0]}
+                  lastName={order.requester_name?.split(' ')[1]}
+                  size="sm"
+                />
+                <span className="text-gray-900">{order.requester_name}</span>
+              </div>
             </td>
             <td className="py-3 px-4">
               <span className="text-gray-600">{formatDate(order.order_date)}</span>

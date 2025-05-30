@@ -8,6 +8,7 @@ export interface User {
   role: 'store_manager' | 'regional_manager';
   storeId?: number;
   region?: string;
+  avatarUrl?: string;
   createdAt: Date;
 }
 
@@ -107,6 +108,9 @@ export interface Order {
   brand?: string;
   category?: string;
   requester_name?: string;
+  requester_avatar_url?: string;
+  approver_name?: string;
+  approver_avatar_url?: string;
 
   // Legacy camelCase compatibility (for backward compatibility)
   orderId?: number;
