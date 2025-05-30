@@ -71,7 +71,7 @@ const Index = () => {
         fetchChartData(currentFilters)
       ]);
     }
-  }, [selectedLocation, selectedCategory, activeTab, setOrderFilters, setInventoryFilters, inventoryFilters, fetchKPIData, fetchChartData]);
+  }, [selectedLocation, selectedCategory, activeTab, setOrderFilters, setInventoryFilters, fetchKPIData, fetchChartData]);
 
   // Build category options from real product data
   const categoryDropdownOptions = [
