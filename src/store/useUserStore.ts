@@ -48,6 +48,7 @@ interface UserState {
   setCurrentUser: (user: User | null) => void;
   clearSelectedUser: () => void;
   refreshUsers: () => Promise<void>;
+  initializeCurrentUser: () => Promise<void>;
 }
 
 export const useUserStore = create<UserState>()(
@@ -84,16 +85,16 @@ export const useUserStore = create<UserState>()(
         set({ isLoadingUser: true, error: null });
 
         try {
-          const result = await UserService.getUserById(userId);
+          const userData = await UserService.getUserById(userId);
 
-          if (result.success) {
+          if (userData) {
             set({
-              selectedUser: result.data,
+              selectedUser: userData,
               isLoadingUser: false
             });
           } else {
             set({
-              error: result.error || 'Failed to fetch user',
+              error: 'User not found',
               isLoadingUser: false
             });
           }
@@ -109,16 +110,16 @@ export const useUserStore = create<UserState>()(
         set({ isLoadingUser: true, error: null });
 
         try {
-          const result = await UserService.getUserByUsername(username);
+          const userData = await UserService.getUserByUsername(username);
 
-          if (result.success) {
+          if (userData) {
             set({
-              selectedUser: result.data,
+              selectedUser: userData,
               isLoadingUser: false
             });
           } else {
             set({
-              error: result.error || 'Failed to fetch user',
+              error: 'User not found',
               isLoadingUser: false
             });
           }
@@ -281,6 +282,55 @@ export const useUserStore = create<UserState>()(
 
       refreshUsers: async () => {
         await get().fetchUsers();
+      },
+
+      initializeCurrentUser: async () => {
+        try {
+          console.log('Initializing current user...');
+          set({ isLoadingUser: true, error: null });
+          const userData = await UserService.getUserById(1);
+
+          if (userData) {
+            console.log('User fetched successfully:', userData);
+            set({
+              currentUser: userData,
+              isLoadingUser: false
+            });
+          } else {
+            console.log('No user found with ID 1, using fallback');
+            // Fallback to demo user if user not found
+            set({
+              currentUser: {
+                userId: 1,
+                firstName: 'John',
+                lastName: 'Doe',
+                email: 'john.doe@brickstorebrands.com',
+                username: 'john.doe',
+                role: 'store_manager',
+                avatarUrl: '',
+                createdAt: new Date(),
+              },
+              isLoadingUser: false
+            });
+          }
+        } catch (error) {
+          console.log('Error fetching user, using fallback:', error);
+          // Fallback to demo user if API fails
+          set({
+            currentUser: {
+              userId: 1,
+              firstName: 'John',
+              lastName: 'Doe',
+              email: 'john.doe@brickstorebrands.com',
+              username: 'john.doe',
+              role: 'store_manager',
+              avatarUrl: '',
+              createdAt: new Date(),
+            },
+            isLoadingUser: false,
+            error: null // Clear error since we have fallback
+          });
+        }
       }
     }),
     {
