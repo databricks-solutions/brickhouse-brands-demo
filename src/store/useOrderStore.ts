@@ -61,6 +61,7 @@ interface OrderState {
     notes?: string;
   }) => Promise<boolean>;
   updateOrderStatus: (orderId: number, status: string, userId?: number) => Promise<boolean>;
+  updateOrder: (orderId: number, updateData: { quantity_cases?: number; notes?: string }) => Promise<boolean>;
   approveOrder: (orderId: number, approvedBy: number) => Promise<boolean>;
   fulfillOrder: (orderId: number) => Promise<boolean>;
   cancelOrder: (orderId: number, reason?: string) => Promise<boolean>;
@@ -167,16 +168,16 @@ export const useOrderStore = create<OrderState>()(
         set({ isLoadingOrder: true, error: null });
 
         try {
-          const result = await OrderService.getOrderById(orderId);
+          const order = await OrderService.getOrderById(orderId);
 
-          if (result.success) {
+          if (order) {
             set({
-              selectedOrder: result.data,
+              selectedOrder: order,
               isLoadingOrder: false
             });
           } else {
             set({
-              error: result.error || 'Failed to fetch order',
+              error: 'Order not found',
               isLoadingOrder: false
             });
           }
@@ -192,13 +193,13 @@ export const useOrderStore = create<OrderState>()(
         set({ isLoading: true, error: null });
 
         try {
-          const result = await OrderService.getOrdersByUser(userId, {}, 1, 20);
+          const orders = await OrderService.getOrdersByUser(userId);
 
           set({
-            orders: result.data,
-            currentPage: result.page,
-            totalPages: result.total_pages,
-            totalItems: result.total,
+            orders,
+            currentPage: 1,
+            totalPages: 1,
+            totalItems: orders.length,
             isLoading: false
           });
         } catch (error) {
@@ -213,7 +214,7 @@ export const useOrderStore = create<OrderState>()(
         set({ isLoading: true, error: null });
 
         try {
-          const orders = await OrderService.getPendingOrders(region);
+          const orders = await OrderService.getPendingApprovals(region);
 
           set({
             orders,
@@ -231,7 +232,8 @@ export const useOrderStore = create<OrderState>()(
         set({ isLoading: true, error: null });
 
         try {
-          const regionData = await OrderService.getOrdersByRegion(filters);
+          // This method doesn't exist in OrderService, commenting out for now
+          // const regionData = await OrderService.getOrdersByRegion(filters);
           // Store region data separately or transform as needed
           // For now, we'll just clear orders since this returns summary data
           set({
@@ -250,7 +252,8 @@ export const useOrderStore = create<OrderState>()(
         set({ isLoading: true, error: null });
 
         try {
-          const trendData = await OrderService.getOrderTrendsByRegion(region, days);
+          // This method doesn't exist in OrderService, commenting out for now
+          // const trendData = await OrderService.getOrderTrendsByRegion(region, days);
           // Store trend data separately or transform as needed
           // For now, we'll just clear orders since this returns trend data
           set({
@@ -298,14 +301,26 @@ export const useOrderStore = create<OrderState>()(
         set({ isUpdatingOrder: true, error: null });
 
         try {
-          const result = await OrderService.updateOrderStatus(orderId, status, userId);
+          // This method doesn't exist in OrderService
+          // Use specific methods like approveOrder, fulfillOrder, cancelOrder instead
+          let result;
+
+          if (status === 'approved' && userId) {
+            result = await OrderService.approveOrder(orderId, userId);
+          } else if (status === 'fulfilled') {
+            result = await OrderService.fulfillOrder(orderId);
+          } else if (status === 'cancelled') {
+            result = await OrderService.cancelOrder(orderId);
+          } else {
+            throw new Error(`Unsupported status update: ${status}`);
+          }
 
           if (result.success) {
             // Update the order in the orders list
             const { orders } = get();
             const updatedOrders = orders.map(order =>
-              order.orderId === orderId
-                ? { ...order, orderStatus: status as any, approvedBy: userId, approvedDate: status === 'approved' ? new Date() : order.approvedDate }
+              order.order_id === orderId
+                ? { ...order, order_status: status as any, approved_by: userId, approved_date: status === 'approved' ? new Date() : order.approved_date }
                 : order
             );
 
@@ -316,13 +331,13 @@ export const useOrderStore = create<OrderState>()(
 
             // Update selected order if it's the same one
             const { selectedOrder } = get();
-            if (selectedOrder && selectedOrder.orderId === orderId) {
+            if (selectedOrder && selectedOrder.order_id === orderId) {
               set({
                 selectedOrder: {
                   ...selectedOrder,
-                  orderStatus: status as any,
-                  approvedBy: userId,
-                  approvedDate: status === 'approved' ? new Date() : selectedOrder.approvedDate
+                  order_status: status as any,
+                  approved_by: userId,
+                  approved_date: status === 'approved' ? new Date() : selectedOrder.approved_date
                 }
               });
             }
@@ -338,6 +353,55 @@ export const useOrderStore = create<OrderState>()(
         } catch (error) {
           set({
             error: `Failed to update order status: ${error}`,
+            isUpdatingOrder: false
+          });
+          return false;
+        }
+      },
+
+      updateOrder: async (orderId: number, updateData: { quantity_cases?: number; notes?: string }) => {
+        set({ isUpdatingOrder: true, error: null });
+
+        try {
+          const result = await OrderService.updateOrder(orderId, updateData);
+
+          if (result.success) {
+            // Update the order in the orders list
+            const { orders } = get();
+            const updatedOrders = orders.map(order =>
+              order.order_id === orderId
+                ? { ...order, ...updateData, version: (order.version || 1) + 1 }
+                : order
+            );
+
+            set({
+              orders: updatedOrders,
+              isUpdatingOrder: false
+            });
+
+            // Update selected order if it's the same one
+            const { selectedOrder } = get();
+            if (selectedOrder && selectedOrder.order_id === orderId) {
+              set({
+                selectedOrder: {
+                  ...selectedOrder,
+                  ...updateData,
+                  version: (selectedOrder.version || 1) + 1
+                }
+              });
+            }
+
+            return true;
+          } else {
+            set({
+              error: result.error || 'Failed to update order',
+              isUpdatingOrder: false
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            error: `Failed to update order: ${error}`,
             isUpdatingOrder: false
           });
           return false;
@@ -360,13 +424,13 @@ export const useOrderStore = create<OrderState>()(
         set({ isLoading: true, error: null });
 
         try {
-          const result = await OrderService.getOrdersByUser(userId, filters, 1, 20);
+          const orders = await OrderService.getOrdersByUser(userId);
 
           set({
-            orders: result.data,
-            currentPage: result.page,
-            totalPages: result.totalPages,
-            totalItems: result.total,
+            orders,
+            currentPage: 1,
+            totalPages: 1,
+            totalItems: orders.length,
             isLoading: false
           });
         } catch (error) {
@@ -381,7 +445,7 @@ export const useOrderStore = create<OrderState>()(
         set({ isLoading: true, error: null });
 
         try {
-          const orders = await OrderService.getPendingOrders(region);
+          const orders = await OrderService.getPendingApprovals(region);
 
           set({
             orders,

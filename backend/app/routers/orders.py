@@ -2,9 +2,19 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
 from app.models.schemas import Order, OrderCreate, ApiResponse, PaginatedResponse
 from app.database.connection import get_db_cursor
+from pydantic import BaseModel
 import math
 
 router = APIRouter()
+
+
+class OrderUpdateRequest(BaseModel):
+    quantity_cases: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class OrderCancelRequest(BaseModel):
+    reason: str
 
 
 @router.get("", response_model=PaginatedResponse)
@@ -304,3 +314,114 @@ async def get_order_status_summary(region: Optional[str] = Query(None)):
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch order status summary: {str(e)}"
         )
+
+
+@router.put("/{order_id}", response_model=Order)
+async def update_order(order_id: int, request: OrderUpdateRequest):
+    """Update order details (quantity and notes)"""
+    try:
+        with get_db_cursor() as cursor:
+            # Build update query dynamically based on provided fields
+            update_fields = []
+            params = []
+
+            if request.quantity_cases is not None:
+                update_fields.append("quantity_cases = %s")
+                params.append(request.quantity_cases)
+
+            if request.notes is not None:
+                update_fields.append("notes = %s")
+                params.append(request.notes)
+
+            if not update_fields:
+                raise HTTPException(status_code=400, detail="No fields to update")
+
+            # Always increment version
+            update_fields.append("version = version + 1")
+
+            # Add order_id for WHERE clause
+            params.append(order_id)
+
+            query = f"""
+                UPDATE orders 
+                SET {', '.join(update_fields)}
+                WHERE order_id = %s AND order_status IN ('pending_review', 'approved')
+                RETURNING order_id
+            """
+
+            cursor.execute(query, params)
+            result = cursor.fetchone()
+
+            if not result:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Order not found or cannot be modified (only pending_review and approved orders can be modified)",
+                )
+
+            # Fetch the updated order with all joined data
+            cursor.execute(
+                """
+                SELECT o.order_id, o.order_number, o.from_store_id, o.to_store_id, 
+                       o.product_id, o.quantity_cases, o.order_status, o.requested_by,
+                       o.approved_by, o.order_date, o.approved_date, o.fulfilled_date,
+                       o.notes, o.version,
+                       ts.store_name as to_store_name, ts.region as to_store_region,
+                       fs.store_name as from_store_name,
+                       p.product_name, p.brand, p.category,
+                       CONCAT(u.first_name, ' ', u.last_name) as requester_name
+                FROM orders o
+                JOIN stores ts ON o.to_store_id = ts.store_id
+                LEFT JOIN stores fs ON o.from_store_id = fs.store_id
+                JOIN products p ON o.product_id = p.product_id
+                JOIN users u ON o.requested_by = u.user_id
+                WHERE o.order_id = %s
+            """,
+                (order_id,),
+            )
+
+            updated_order = cursor.fetchone()
+            return Order(**updated_order)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update order: {str(e)}")
+
+
+@router.put("/{order_id}/cancel", response_model=ApiResponse)
+async def cancel_order(order_id: int, request: OrderCancelRequest):
+    """Cancel an order with a reason"""
+    try:
+        with get_db_cursor() as cursor:
+            # Update order status to cancelled and increment version
+            cursor.execute(
+                """
+                UPDATE orders 
+                SET order_status = 'cancelled', 
+                    notes = CASE 
+                        WHEN notes IS NULL OR notes = '' THEN %s
+                        ELSE CONCAT(notes, '\n\nCancellation reason: ', %s)
+                    END,
+                    version = version + 1
+                WHERE order_id = %s AND order_status IN ('pending_review', 'approved')
+                RETURNING order_id
+                """,
+                (f"Cancellation reason: {request.reason}", request.reason, order_id),
+            )
+
+            result = cursor.fetchone()
+
+            if not result:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Order not found or cannot be cancelled (only pending_review and approved orders can be cancelled)",
+                )
+
+            return ApiResponse(
+                success=True, message=f"Order {order_id} has been cancelled"
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to cancel order: {str(e)}")

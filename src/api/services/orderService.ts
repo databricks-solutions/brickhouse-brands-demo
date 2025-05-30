@@ -85,10 +85,10 @@ export class OrderService {
   // Update order
   static async updateOrder(
     orderId: number,
-    updates: Partial<Order>
+    updates: { quantity_cases?: number; notes?: string }
   ): Promise<ApiResponse<Order>> {
     try {
-      const response = await apiClient.patch(`/orders/${orderId}`, updates);
+      const response = await apiClient.put(`/orders/${orderId}`, updates);
       return {
         success: true,
         data: response.data,
@@ -150,8 +150,8 @@ export class OrderService {
     reason?: string
   ): Promise<ApiResponse<Order>> {
     try {
-      const response = await apiClient.patch(`/orders/${orderId}/cancel`, {
-        reason
+      const response = await apiClient.put(`/orders/${orderId}/cancel`, {
+        reason: reason || 'Order cancelled by user'
       });
       return {
         success: true,

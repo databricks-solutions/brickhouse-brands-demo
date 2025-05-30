@@ -315,16 +315,16 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
           {/* Product Search and Selection */}
           <div className="lg:col-span-2 space-y-4 flex flex-col min-h-0">
             <div className="flex gap-4 flex-shrink-0">
-              <div className="flex-1">
+              <div className="flex-1 px-1">
                 <Label htmlFor="search" className="mb-3 block">Search Products</Label>
                 <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
                   <Input
                     id="search"
                     placeholder="Search by product name or SKU..."
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 focus-visible:ring-offset-0 focus-visible:ring-2"
                   />
                 </div>
               </div>

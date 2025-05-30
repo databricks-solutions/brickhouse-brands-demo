@@ -1,21 +1,22 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ChevronLeft, ChevronRight, Package, Store, User, Calendar } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Package, Store, User, Calendar, Edit3 } from "lucide-react";
 import { useOrderStore } from "@/store/useOrderStore";
 import { useInventoryStore } from "@/store/useInventoryStore";
 import { Order } from "@/api/types";
+import { ModifyOrderModal } from "./ModifyOrderModal";
 
 const getStatusBadgeVariant = (status: string) => {
   switch (status) {
     case 'pending_review':
-      return 'destructive';
+      return 'pending-review';
     case 'approved':
-      return 'secondary';
+      return 'approved-order';
     case 'fulfilled':
-      return 'success';
+      return 'fulfilled-order';
     case 'cancelled':
-      return 'outline';
+      return 'cancelled-order';
     default:
       return 'default';
   }
@@ -64,6 +65,23 @@ export const OrdersTable = () => {
   const { filters: inventoryFilters } = useInventoryStore();
 
   const [pageSize] = useState(10);
+  const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
+  const [selectedOrderForModify, setSelectedOrderForModify] = useState<Order | null>(null);
+
+  // Helper function to check if order can be modified
+  const canModifyOrder = (order: Order) => {
+    return order.order_status === 'pending_review' || order.order_status === 'approved';
+  };
+
+  const handleModifyOrder = (order: Order) => {
+    setSelectedOrderForModify(order);
+    setIsModifyModalOpen(true);
+  };
+
+  const handleCloseModifyModal = () => {
+    setIsModifyModalOpen(false);
+    setSelectedOrderForModify(null);
+  };
 
   useEffect(() => {
     // Set the page size in the store
@@ -147,11 +165,15 @@ export const OrdersTable = () => {
       <td className="py-3 px-4">
         <div className="h-6 bg-gray-200 rounded animate-pulse w-16"></div>
       </td>
+      <td className="py-3 px-4">
+        <div className="h-6 bg-gray-200 rounded animate-pulse w-24"></div>
+      </td>
     </tr>
   );
 
   const renderEmptyRow = () => (
     <tr className="border-b border-gray-100">
+      <td className="py-3 px-4">&nbsp;</td>
       <td className="py-3 px-4">&nbsp;</td>
       <td className="py-3 px-4">&nbsp;</td>
       <td className="py-3 px-4">&nbsp;</td>
@@ -206,6 +228,21 @@ export const OrdersTable = () => {
                 {getStatusText(order.order_status)}
               </Badge>
             </td>
+            <td className="py-3 px-4">
+              {canModifyOrder(order) ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleModifyOrder(order)}
+                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                >
+                  <Edit3 className="h-4 w-4 mr-1" />
+                  Modify
+                </Button>
+              ) : (
+                <span className="text-gray-400 text-sm">-</span>
+              )}
+            </td>
           </tr>
         );
       });
@@ -255,6 +292,7 @@ export const OrdersTable = () => {
               <th className="text-left py-3 px-4 font-medium text-gray-900">Requested By</th>
               <th className="text-left py-3 px-4 font-medium text-gray-900">Date</th>
               <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
+              <th className="text-left py-3 px-4 font-medium text-gray-900">Actions</th>
             </tr>
           </thead>
           <tbody style={{ minHeight: `${pageSize * 60}px` }}>
@@ -319,6 +357,13 @@ export const OrdersTable = () => {
           <p className="text-gray-600">No orders found</p>
         </div>
       )}
+
+      {/* Modify Order Modal */}
+      <ModifyOrderModal
+        isOpen={isModifyModalOpen}
+        onClose={handleCloseModifyModal}
+        order={selectedOrderForModify}
+      />
     </div>
   );
 }; 
