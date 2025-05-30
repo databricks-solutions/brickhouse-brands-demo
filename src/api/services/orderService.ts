@@ -12,6 +12,10 @@ import {
 import { AxiosError } from 'axios';
 
 export class OrderService {
+  private static currentRequest: Promise<PaginatedResponse<Order>> | null = null;
+  private static currentRequestKey: string | null = null;
+  private static requestCounter: number = 0;
+
   // Get all orders with optional filtering
   static async getOrders(
     filters: OrderFilters = {},
@@ -19,17 +23,61 @@ export class OrderService {
     limit: number = 50
   ): Promise<PaginatedResponse<Order>> {
     try {
+      // Convert camelCase to snake_case for backend compatibility
+      const backendFilters: any = { ...filters };
+      if (filters.expiredSlaOnly !== undefined) {
+        backendFilters.expired_sla_only = filters.expiredSlaOnly;
+        delete backendFilters.expiredSlaOnly;
+      }
+
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
         ...Object.fromEntries(
-          Object.entries(filters).filter(([_, value]) => value != null && value !== '')
+          Object.entries(backendFilters).filter(([_, value]) => value != null && value !== '')
         )
       });
 
-      const response = await apiClient.get(`/orders?${params}`);
-      return response.data;
+      // Create a unique request key for deduplication
+      const requestKey = `/orders?${params}`;
+
+      // Increment request counter for tracking
+      const requestId = ++this.requestCounter;
+
+      // If we have an identical request in flight, return that promise
+      if (this.currentRequestKey === requestKey && this.currentRequest) {
+        return this.currentRequest;
+      }
+
+      // Cancel any previous request by clearing it
+      if (this.currentRequest && this.currentRequestKey !== requestKey) {
+        this.currentRequest = null;
+        this.currentRequestKey = null;
+      }
+
+      // Create new request
+      this.currentRequestKey = requestKey;
+      this.currentRequest = apiClient.get(requestKey).then(response => {
+        // Only clear if this is still the current request
+        if (this.currentRequestKey === requestKey) {
+          this.currentRequest = null;
+          this.currentRequestKey = null;
+        }
+        return response.data;
+      }).catch(error => {
+        // Clear on error, but only if this is still the current request
+        if (this.currentRequestKey === requestKey) {
+          this.currentRequest = null;
+          this.currentRequestKey = null;
+        }
+        throw error;
+      });
+
+      return this.currentRequest;
     } catch (error) {
+      // Clear on error
+      this.currentRequest = null;
+      this.currentRequestKey = null;
       throw new Error(handleApiError(error as AxiosError));
     }
   }
@@ -390,7 +438,7 @@ export class OrderService {
   }
 
   // Get order status summary with SLA tracking
-  static async getOrderStatusSummary(region?: string): Promise<{
+  static async getOrderStatusSummary(region?: string, category?: string): Promise<{
     status_counts: {
       pending_review: number;
       approved: number;
@@ -405,6 +453,9 @@ export class OrderService {
       const params = new URLSearchParams();
       if (region && region !== 'all') {
         params.append('region', region);
+      }
+      if (category && category !== 'all') {
+        params.append('category', category);
       }
 
       const response = await apiClient.get(`/orders/status/summary?${params}`);

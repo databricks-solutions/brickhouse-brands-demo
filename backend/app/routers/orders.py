@@ -22,7 +22,9 @@ async def get_orders(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     region: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
+    expired_sla_only: Optional[bool] = Query(False),
 ):
     """Get orders with pagination and optional filtering"""
     try:
@@ -63,13 +65,24 @@ async def get_orders(
             params = []
             conditions = []
 
+            # Handle expired SLA filtering first - this takes precedence
+            if expired_sla_only:
+                conditions.append(
+                    " AND o.order_status = 'pending_review' AND o.order_date < NOW() - INTERVAL '2 days'"
+                )
+            else:
+                # Only apply status filter if not filtering by expired SLA
+                if status and status != "all":
+                    conditions.append(" AND o.order_status = %s")
+                    params.append(status)
+
             if region and region != "all":
                 conditions.append(" AND ts.region = %s")
                 params.append(region)
 
-            if status and status != "all":
-                conditions.append(" AND o.order_status = %s")
-                params.append(status)
+            if category and category != "all":
+                conditions.append(" AND p.category = %s")
+                params.append(category)
 
             # Add conditions to both queries
             condition_str = "".join(conditions)
@@ -253,7 +266,9 @@ async def update_order_status(
 
 
 @router.get("/status/summary")
-async def get_order_status_summary(region: Optional[str] = Query(None)):
+async def get_order_status_summary(
+    region: Optional[str] = Query(None), category: Optional[str] = Query(None)
+):
     """Get order status summary with SLA tracking"""
     try:
         with get_db_cursor() as cursor:
@@ -263,6 +278,10 @@ async def get_order_status_summary(region: Optional[str] = Query(None)):
             if region and region != "all":
                 conditions.append(" AND s.region = %s")
                 params.append(region)
+
+            if category and category != "all":
+                conditions.append(" AND p.category = %s")
+                params.append(category)
 
             condition_str = "".join(conditions)
 
@@ -275,6 +294,7 @@ async def get_order_status_summary(region: Optional[str] = Query(None)):
                     SUM(o.quantity_cases) as total_cases
                 FROM orders o
                 JOIN stores s ON o.to_store_id = s.store_id
+                JOIN products p ON o.product_id = p.product_id
                 WHERE o.order_date >= CURRENT_DATE - INTERVAL '30 days' {condition_str}
                 GROUP BY o.order_status
                 ORDER BY count DESC
@@ -290,8 +310,9 @@ async def get_order_status_summary(region: Optional[str] = Query(None)):
                 SELECT COUNT(*) as expired_sla_count
                 FROM orders o
                 JOIN stores s ON o.to_store_id = s.store_id
+                JOIN products p ON o.product_id = p.product_id
                 WHERE o.order_status = 'pending_review' 
-                AND o.order_date < CURRENT_DATE - INTERVAL '2 days' {condition_str}
+                AND o.order_date < NOW() - INTERVAL '2 days' {condition_str}
             """,
                 params,
             )

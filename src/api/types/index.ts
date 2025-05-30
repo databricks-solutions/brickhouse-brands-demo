@@ -216,12 +216,14 @@ export interface OrderFilters {
   storeId?: number | string;
   region?: string;
   status?: string;
+  category?: string;
   requestedBy?: number;
   dateRange?: {
     from: Date;
     to: Date;
   };
   searchTerm?: string;
+  expiredSlaOnly?: boolean;
 }
 
 export interface StoreFilters {

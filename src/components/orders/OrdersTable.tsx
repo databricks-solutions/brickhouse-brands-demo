@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/ui/UserAvatar";
-import { Loader2, ChevronLeft, ChevronRight, Package, Store, User, Calendar, Edit3 } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Package, Store, User, Calendar, Edit3, AlertTriangle } from "lucide-react";
 import { useOrderStore } from "@/store/useOrderStore";
 import { useInventoryStore } from "@/store/useInventoryStore";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
@@ -48,6 +48,20 @@ const formatDate = (date: string | Date) => {
   });
 };
 
+// Helper function to check if expired SLA filter is active
+const isExpiredSlaFilterActive = (orderFilters: any) => {
+  return orderFilters.expiredSlaOnly === true;
+};
+
+// Helper function to calculate days since order creation (for display only)
+const getDaysExpired = (orderDate: string | Date) => {
+  const orderDateTime = typeof orderDate === 'string' ? new Date(orderDate) : orderDate;
+  const currentDate = new Date();
+  const diffTime = currentDate.getTime() - orderDateTime.getTime();
+  const diffDays = diffTime / (1000 * 60 * 60 * 24); // Don't floor this
+  return diffDays;
+};
+
 export const OrdersTable = () => {
   const {
     orders,
@@ -59,12 +73,8 @@ export const OrdersTable = () => {
     fetchOrders,
     setPage,
     setPageSize,
-    setFilters,
-    filters: orderFilters
+    filters // All filters now centralized in order store
   } = useOrderStore();
-
-  // Get the current filters from the inventory store
-  const { filters: inventoryFilters } = useInventoryStore();
 
   // Get dark mode state
   const { isDarkMode } = useDarkModeStore();
@@ -93,16 +103,10 @@ export const OrdersTable = () => {
     setPageSize(pageSize);
   }, [setPageSize, pageSize]);
 
+  // Simple effect - just fetch when filters change (debouncing handled in store)
   useEffect(() => {
-    // Combine inventory filters (region/category) with order filters (status)
-    const combinedFilters = {
-      region: inventoryFilters.region,
-      status: orderFilters.status || 'all',
-      // Add more filters as needed
-    };
-
-    fetchOrders(combinedFilters, 1, pageSize);
-  }, [fetchOrders, pageSize, inventoryFilters.region, orderFilters.status]);
+    fetchOrders(filters, 1, pageSize);
+  }, [fetchOrders, filters, pageSize]);
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
@@ -116,9 +120,21 @@ export const OrdersTable = () => {
           <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{order.order_number}</p>
           <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{order.product_name}</p>
         </div>
-        <Badge variant={getStatusBadgeVariant(order.order_status)}>
-          {getStatusText(order.order_status)}
-        </Badge>
+        <div className="flex flex-col items-end">
+          <div className="flex items-center gap-1">
+            <Badge variant={getStatusBadgeVariant(order.order_status)}>
+              {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > 2 && (
+                <AlertTriangle className={`h-3 w-3 mr-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`} />
+              )}
+              {getStatusText(order.order_status)}
+            </Badge>
+          </div>
+          {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > 2 && (
+            <div className={`text-xs mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
+              {Math.max(0, Math.ceil(getDaysExpired(order.order_date) - 2))} days overdue
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-sm">
@@ -144,7 +160,7 @@ export const OrdersTable = () => {
           <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>{formatDate(order.order_date)}</span>
         </div>
       </div>
-    </div>
+    </div >
   );
 
   const renderSkeletonRow = () => (
@@ -201,15 +217,15 @@ export const OrdersTable = () => {
   );
 
   const renderEmptyRow = () => (
-    <tr className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-100'}`}>
-      <td className="py-3 px-4">&nbsp;</td>
-      <td className="py-3 px-4">&nbsp;</td>
-      <td className="py-3 px-4">&nbsp;</td>
-      <td className="py-3 px-4">&nbsp;</td>
-      <td className="py-3 px-4">&nbsp;</td>
-      <td className="py-3 px-4">&nbsp;</td>
-      <td className="py-3 px-4 text-center">&nbsp;</td>
-      <td className="py-3 px-4 text-center">&nbsp;</td>
+    <tr className="">
+      <td className="py-3 px-4"></td>
+      <td className="py-3 px-4"></td>
+      <td className="py-3 px-4"></td>
+      <td className="py-3 px-4"></td>
+      <td className="py-3 px-4"></td>
+      <td className="py-3 px-4"></td>
+      <td className="py-3 px-4 text-center"></td>
+      <td className="py-3 px-4 text-center"></td>
     </tr>
   );
 
@@ -262,10 +278,20 @@ export const OrdersTable = () => {
               <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>{formatDate(order.order_date)}</span>
             </td>
             <td className="py-3 px-4 text-center">
-              <div className="flex justify-center">
-                <Badge variant={getStatusBadgeVariant(order.order_status)} className="min-w-[100px] justify-center">
-                  {getStatusText(order.order_status)}
-                </Badge>
+              <div className="flex flex-col items-center justify-center">
+                <div className="flex items-center gap-1">
+                  <Badge variant={getStatusBadgeVariant(order.order_status)} className="min-w-[100px] justify-center">
+                    {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > 2 && (
+                      <AlertTriangle className={`h-3 w-3 mr-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`} />
+                    )}
+                    {getStatusText(order.order_status)}
+                  </Badge>
+                </div>
+                {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > 2 && (
+                  <div className={`text-xs mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
+                    {Math.max(0, Math.ceil(getDaysExpired(order.order_date) - 2))} days overdue
+                  </div>
+                )}
               </div>
             </td>
             <td className="py-3 px-4 text-center">
@@ -304,17 +330,60 @@ export const OrdersTable = () => {
 
   if (error) {
     return (
-      <div className="pt-6">
-        <div className={`text-center ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
-          <p className="font-medium">Error loading orders</p>
-          <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{error}</p>
-        </div>
+      <div className={`text-center py-8 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
+        <p className="font-medium">Error loading orders</p>
+        <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{error}</p>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className={`rounded-lg border ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+      {/* Add a subtle loading bar when filtering */}
+      {isLoading && (
+        <div className="h-1 w-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+          <div className="h-full bg-blue-500 animate-pulse" style={{ width: '30%' }}></div>
+        </div>
+      )}
+
+      {/* Mobile view */}
+      <div className="lg:hidden">
+        <div className="p-4 space-y-4">
+          {isLoading ? (
+            // Mobile skeleton loading
+            Array.from({ length: pageSize }).map((_, index) => (
+              <div
+                key={`mobile-skeleton-${index}`}
+                className={`rounded-lg border p-4 space-y-3 animate-pulse ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                  }`}
+              >
+                <div className="flex justify-between items-start">
+                  <div className="space-y-2">
+                    <div className={`h-4 w-24 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+                    <div className={`h-3 w-32 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+                  </div>
+                  <div className={`h-6 w-20 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className={`h-4 w-16 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+                  <div className={`h-4 w-20 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+                  <div className={`h-4 w-24 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+                  <div className={`h-4 w-18 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+                </div>
+              </div>
+            ))
+          ) : orders.length === 0 ? (
+            <div className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <Package className={`mx-auto h-12 w-12 mb-4 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`} />
+              <p className="font-medium">No orders found</p>
+              <p className="text-sm mt-1">Try adjusting your filters or search criteria</p>
+            </div>
+          ) : (
+            orders.map(renderMobileCard)
+          )}
+        </div>
+      </div>
+
       {/* Desktop Table - Always show structure */}
       <div className="hidden md:block overflow-x-auto relative">
         {/* Loading overlay for desktop */}
@@ -336,38 +405,20 @@ export const OrdersTable = () => {
               <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Quantity</th>
               <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>To Store</th>
               <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Requested By</th>
-              <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Date</th>
-              <th className={`text-center py-3 px-4 font-medium w-32 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Status</th>
-              <th className={`text-center py-3 px-4 font-medium w-28 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Actions</th>
+              <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Order Date</th>
+              <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Status</th>
+              <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Actions</th>
             </tr>
           </thead>
-          <tbody style={{ minHeight: `${pageSize * 60}px` }}>
+          <tbody>
             {getTableRows()}
           </tbody>
         </table>
       </div>
 
-      {/* Mobile Cards */}
-      <div className="md:hidden space-y-3">
-        {isLoading ? (
-          // Show loading state for mobile
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className={`h-8 w-8 animate-spin ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
-            <span className={`ml-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Loading orders...</span>
-          </div>
-        ) : orders.length === 0 ? (
-          <div className="text-center py-12">
-            <Package className={`h-12 w-12 mx-auto mb-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-            <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>No orders found</p>
-          </div>
-        ) : (
-          orders.map(renderMobileCard)
-        )}
-      </div>
-
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className={`flex items-center justify-between mt-6 pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        <div className={`flex items-center justify-between mt-6 pt-4 px-6 pb-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
           <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>
@@ -416,4 +467,4 @@ export const OrdersTable = () => {
       />
     </div>
   );
-}; 
+};

@@ -2,40 +2,39 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, AlertTriangle, CheckCircle, Package, Loader2 } from "lucide-react";
 import { useOrderStore } from "@/store/useOrderStore";
-import { useInventoryStore } from "@/store/useInventoryStore";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
 
 type FilterType = 'pending_review' | 'expired_sla' | 'approved' | 'fulfilled' | null;
 
 export const OrderAnalyticsCards = () => {
     const { statusSummary, isLoadingStatusSummary, error, fetchOrderStatusSummary, setFilters, filters } = useOrderStore();
-    const { filters: inventoryFilters } = useInventoryStore();
     const { isDarkMode } = useDarkModeStore();
     const [activeFilter, setActiveFilter] = useState<FilterType>(null);
 
     useEffect(() => {
-        // Fetch status summary when component mounts or region filter changes
-        fetchOrderStatusSummary(inventoryFilters.region);
+        // Fetch status summary when component mounts or region/category filter changes
+        fetchOrderStatusSummary(filters.region, filters.category);
 
         // Set initial active filter based on current order store state
         if (filters.status && filters.status !== 'all') {
             setActiveFilter(filters.status as FilterType);
         }
-    }, [fetchOrderStatusSummary, inventoryFilters.region]); // Only run on mount and region change
+    }, [fetchOrderStatusSummary, filters.region, filters.category]); // Include category in dependencies
 
     // Sync active filter with order store filters
     useEffect(() => {
-        if (filters.status === 'all' || !filters.status) {
+        if (filters.expiredSlaOnly) {
+            // If expired SLA only is true, show expired_sla as active
+            setActiveFilter('expired_sla');
+        } else if (filters.status === 'all' || !filters.status) {
             setActiveFilter(null);
         } else if (filters.status === 'pending_review') {
-            // Could be either pending_review or expired_sla, keep current activeFilter if it's one of those
-            if (activeFilter !== 'pending_review' && activeFilter !== 'expired_sla') {
-                setActiveFilter('pending_review');
-            }
+            // For regular pending review (not expired SLA)
+            setActiveFilter('pending_review');
         } else {
             setActiveFilter(filters.status as FilterType);
         }
-    }, [filters.status, activeFilter]);
+    }, [filters.status, filters.expiredSlaOnly]);
 
     const formatNumber = (value: number) => {
         return new Intl.NumberFormat('en-US').format(value);
@@ -43,19 +42,30 @@ export const OrderAnalyticsCards = () => {
 
     const handleCardClick = (filterType: FilterType) => {
         if (activeFilter === filterType) {
-            // Clicking the same card - remove filter
+            // Clicking the same card - remove filter but preserve other filters
             setActiveFilter(null);
-            setFilters({ status: 'all' });
+            setFilters({
+                ...filters,
+                status: 'all',
+                expiredSlaOnly: false
+            });
         } else {
-            // Clicking a different card - apply filter
+            // Clicking a different card - apply filter but preserve other filters
             setActiveFilter(filterType);
 
             if (filterType === 'expired_sla') {
-                // For expired SLA, we filter by pending_review status
-                // The backend logic already handles the 2-day logic in the summary
-                setFilters({ status: 'pending_review' });
+                // For expired SLA, we only need expiredSlaOnly=true, backend will handle the rest
+                setFilters({
+                    ...filters,
+                    status: 'all', // Let backend handle status filtering
+                    expiredSlaOnly: true
+                });
             } else if (filterType) {
-                setFilters({ status: filterType });
+                setFilters({
+                    ...filters,
+                    status: filterType,
+                    expiredSlaOnly: false
+                });
             }
         }
     };

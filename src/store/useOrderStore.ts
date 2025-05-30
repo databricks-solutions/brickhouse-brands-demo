@@ -3,6 +3,9 @@ import { devtools } from 'zustand/middleware';
 import { Order, OrderFilters, PaginatedResponse } from '../api/types';
 import { OrderService } from '../api/services/orderService';
 
+// Add debouncing functionality
+let filterDebounceTimer: NodeJS.Timeout | null = null;
+
 interface OrderStatusSummary {
   status_counts: {
     pending_review: number;
@@ -27,7 +30,7 @@ interface OrderState {
   totalItems: number;
   pageSize: number;
 
-  // Filters
+  // Centralized Filters - ALL filters managed here
   filters: OrderFilters;
 
   // Loading states
@@ -51,7 +54,7 @@ interface OrderState {
   fetchPendingOrders: (region?: string) => Promise<void>;
   fetchOrdersByRegion: (filters?: { status?: string; dateFrom?: string; dateTo?: string }) => Promise<void>;
   fetchOrderTrendsByRegion: (region?: string, days?: number) => Promise<void>;
-  fetchOrderStatusSummary: (region?: string) => Promise<void>;
+  fetchOrderStatusSummary: (region?: string, category?: string) => Promise<void>;
   createOrder: (orderData: {
     fromStoreId?: number;
     toStoreId: number;
@@ -76,6 +79,8 @@ const initialFilters: OrderFilters = {
   region: 'all',
   status: 'all',
   searchTerm: '',
+  expiredSlaOnly: false,
+  category: 'all',
 };
 
 export const useOrderStore = create<OrderState>()(
@@ -100,10 +105,28 @@ export const useOrderStore = create<OrderState>()(
       // Actions
       setFilters: (filters: Partial<OrderFilters>) => {
         const newFilters = { ...get().filters, ...filters };
-        set({ filters: newFilters, currentPage: 1 }); // Reset to page 1 when filtering
 
-        // Automatically refetch orders with new filters
-        get().fetchOrders(newFilters, 1, get().pageSize);
+        // Update filters and UI state IMMEDIATELY - no waiting!
+        set({
+          filters: newFilters,
+          currentPage: 1,
+          error: null,
+          // Show loading state immediately for better UX
+          isLoading: true
+        });
+
+        // Clear existing debounce timer
+        if (filterDebounceTimer) {
+          clearTimeout(filterDebounceTimer);
+        }
+
+        // Debounce ONLY the API call, not the UI state
+        filterDebounceTimer = setTimeout(() => {
+          // Use the filters from state (in case they changed again)
+          const currentFilters = get().filters;
+          get().fetchOrders(currentFilters, 1, get().pageSize);
+          filterDebounceTimer = null;
+        }, 300); // 300ms debounce for API calls only
       },
 
       clearFilters: () => {
@@ -124,11 +147,11 @@ export const useOrderStore = create<OrderState>()(
         set({ selectedOrder: null });
       },
 
-      fetchOrderStatusSummary: async (region?: string) => {
+      fetchOrderStatusSummary: async (region?: string, category?: string) => {
         set({ isLoadingStatusSummary: true, error: null });
 
         try {
-          const result = await OrderService.getOrderStatusSummary(region);
+          const result = await OrderService.getOrderStatusSummary(region, category);
 
           set({
             statusSummary: result,

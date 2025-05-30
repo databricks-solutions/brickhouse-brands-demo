@@ -8,6 +8,7 @@ import { Navigation } from "@/components/layout/Navigation";
 import { useStoreStore } from "@/store/useStoreStore";
 import { useProductStore } from "@/store/useProductStore";
 import { useInventoryStore } from "@/store/useInventoryStore";
+import { useOrderStore } from "@/store/useOrderStore";
 import { useUserStore } from "@/store/useUserStore";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
 
@@ -23,7 +24,10 @@ const Index = () => {
   const { categoryOptions, isLoadingCategories, fetchCategoryOptions } = useProductStore();
 
   // Get inventory filters and update functions
-  const { filters, setFilters, fetchKPIData, fetchChartData } = useInventoryStore();
+  const { filters: inventoryFilters, setFilters: setInventoryFilters, fetchKPIData, fetchChartData } = useInventoryStore();
+
+  // Get order filters and update functions for centralized order management
+  const { setFilters: setOrderFilters } = useOrderStore();
 
   // Get user store for initialization
   const { initializeCurrentUser } = useUserStore();
@@ -43,22 +47,31 @@ const Index = () => {
     fetchCategoryOptions();
   }, [fetchStores, fetchRegionOptions, fetchCategoryOptions]);
 
-  // Update KPI data when filters change
+  // Update filters when region/category changes
   useEffect(() => {
-    const currentFilters = {
-      ...filters,
-      region: selectedLocation === "all" ? "all" : selectedLocation,
-      category: selectedCategory === "all" ? "all" : selectedCategory,
-    };
+    if (activeTab === 'order-management') {
+      // For order management, use centralized order store
+      setOrderFilters({
+        region: selectedLocation === "all" ? "all" : selectedLocation,
+        category: selectedCategory === "all" ? "all" : selectedCategory,
+      });
+    } else {
+      // For insights, use inventory store (for KPI data)
+      const currentFilters = {
+        ...inventoryFilters,
+        region: selectedLocation === "all" ? "all" : selectedLocation,
+        category: selectedCategory === "all" ? "all" : selectedCategory,
+      };
 
-    setFilters(currentFilters);
+      setInventoryFilters(currentFilters);
 
-    // Fetch both KPI and chart data with updated filters
-    Promise.all([
-      fetchKPIData(currentFilters),
-      fetchChartData(currentFilters)
-    ]);
-  }, [selectedLocation, selectedCategory, setFilters, fetchKPIData, fetchChartData]);
+      // Fetch both KPI and chart data with updated filters
+      Promise.all([
+        fetchKPIData(currentFilters),
+        fetchChartData(currentFilters)
+      ]);
+    }
+  }, [selectedLocation, selectedCategory, activeTab, setOrderFilters, setInventoryFilters, inventoryFilters, fetchKPIData, fetchChartData]);
 
   // Build category options from real product data
   const categoryDropdownOptions = [

@@ -85,6 +85,15 @@ const formatCurrency = (amount: number): string => {
   });
 };
 
+// Helper function to calculate days since order creation (for display only)
+const getDaysExpired = (orderDate: string | Date) => {
+  const orderDateTime = typeof orderDate === 'string' ? new Date(orderDate) : orderDate;
+  const currentDate = new Date();
+  const diffTime = currentDate.getTime() - orderDateTime.getTime();
+  const diffDays = diffTime / (1000 * 60 * 60 * 24); // Don't floor this
+  return diffDays;
+};
+
 export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalProps) => {
   const [quantity, setQuantity] = useState<number>(0);
   const [notes, setNotes] = useState<string>('');
@@ -230,8 +239,16 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
               }`}>
               <div className="flex items-center gap-3">
                 <Badge variant={getStatusBadgeVariant(order.order_status)} className="text-sm">
+                  {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > 2 && (
+                    <AlertTriangle className={`h-3 w-3 mr-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`} />
+                  )}
                   {getStatusText(order.order_status)}
                 </Badge>
+                {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > 2 && (
+                  <span className={`text-xs ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
+                    {Math.max(0, Math.ceil(getDaysExpired(order.order_date) - 2))} days overdue
+                  </span>
+                )}
                 <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
                   Version {order.version}
