@@ -5,9 +5,11 @@ import { Download, Plus } from "lucide-react";
 import { OrdersTable } from "./OrdersTable";
 import { PlaceOrderModal } from "./PlaceOrderModal";
 import { OrderAnalyticsCards } from "./OrderAnalyticsCards";
+import { useDarkModeStore } from "@/store/useDarkModeStore";
 
 export const RecentOrders = () => {
     const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+    const { isDarkMode } = useDarkModeStore();
 
     const handleExportCSV = () => {
         // Mock CSV export functionality
@@ -26,16 +28,19 @@ export const RecentOrders = () => {
             {/* Order Analytics Cards */}
             <OrderAnalyticsCards />
 
-            <Card>
+            <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
                 <CardHeader>
                     <div className="flex justify-between items-center">
-                        <CardTitle>Orders</CardTitle>
+                        <CardTitle className={isDarkMode ? 'text-white' : ''}>Orders</CardTitle>
                         <div className="flex gap-3">
                             <Button
                                 onClick={handleExportCSV}
                                 variant="outline"
                                 size="sm"
-                                className="flex items-center gap-2"
+                                className={`flex items-center gap-2 ${isDarkMode
+                                    ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white'
+                                    : ''
+                                    }`}
                             >
                                 <Download className="h-4 w-4" />
                                 Export CSV
@@ -43,7 +48,10 @@ export const RecentOrders = () => {
                             <Button
                                 onClick={() => setIsOrderModalOpen(true)}
                                 size="sm"
-                                className="flex items-center gap-2"
+                                className={`flex items-center gap-2 ${isDarkMode
+                                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                    }`}
                             >
                                 <Plus className="h-4 w-4" />
                                 Place Order

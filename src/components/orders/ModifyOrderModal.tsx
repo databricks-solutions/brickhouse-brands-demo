@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrderStore } from "@/store/useOrderStore";
+import { useDarkModeStore } from "@/store/useDarkModeStore";
 import { Order } from "@/api/types";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 
@@ -93,6 +94,7 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
 
   const { toast } = useToast();
   const { isUpdatingOrder, updateOrder, cancelOrder, refreshOrders } = useOrderStore();
+  const { isDarkMode } = useDarkModeStore();
 
   // Initialize form values when order changes
   useEffect(() => {
@@ -138,7 +140,7 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
       if (success) {
         toast({
           title: "Order updated",
-          description: `Order #${order.order_number} has been successfully updated.`,
+          description: `Order ${order.order_number} has been successfully updated.`,
           variant: "default"
         });
 
@@ -175,7 +177,7 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
       if (success) {
         toast({
           title: "Order cancelled",
-          description: `Order #${order.order_number} has been cancelled.`,
+          description: `Order ${order.order_number} has been cancelled.`,
           variant: "default"
         });
 
@@ -212,29 +214,38 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className={`max-w-4xl max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-gray-800 border-gray-700' : ''
+          }`}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-2xl font-bold">
+            <DialogTitle className={`flex items-center gap-3 text-2xl font-bold ${isDarkMode ? 'text-white' : ''
+              }`}>
               <Edit3 className="h-6 w-6" />
-              Modify Order #{order.order_number}
+              Modify Order {order.order_number}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-6">
             {/* Order Status Banner */}
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div className={`flex items-center justify-between p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'
+              }`}>
               <div className="flex items-center gap-3">
                 <Badge variant={getStatusBadgeVariant(order.order_status)} className="text-sm">
                   {getStatusText(order.order_status)}
                 </Badge>
-                <span className="text-sm text-gray-600">
+                <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                   Version {order.version}
                 </span>
               </div>
               {!canModify && (
-                <Alert className="inline-flex items-center py-2 px-3 border-orange-200 bg-orange-50">
-                  <AlertTriangle className="h-4 w-4 text-orange-600" />
-                  <AlertDescription className="text-orange-700 ml-2 text-sm">
+                <Alert className={`inline-flex items-center py-2 px-3 ${isDarkMode
+                  ? 'border-orange-700 bg-orange-900/20'
+                  : 'border-orange-200 bg-orange-50'
+                  }`}>
+                  <AlertTriangle className={`h-4 w-4 ${isDarkMode ? 'text-orange-400' : 'text-orange-600'
+                    }`} />
+                  <AlertDescription className={`ml-2 text-sm ${isDarkMode ? 'text-orange-300' : 'text-orange-700'
+                    }`}>
                     Only pending and approved orders can be modified
                   </AlertDescription>
                 </Alert>
@@ -244,9 +255,10 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
             {/* Order Information Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Left Column - Order Details */}
-              <Card>
+              <Card className={isDarkMode ? 'bg-gray-700 border-gray-600' : ''}>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
+                  <CardTitle className={`flex items-center gap-2 text-lg ${isDarkMode ? 'text-white' : ''
+                    }`}>
                     <Package className="h-5 w-5" />
                     Order Details
                   </CardTitle>
@@ -254,18 +266,26 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="flex items-center gap-2">
-                      <Hash className="h-4 w-4 text-gray-400" />
+                      <Hash className={`h-4 w-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                        }`} />
                       <div>
-                        <div className="font-medium text-gray-900">Order Number</div>
-                        <div className="text-gray-600">#{order.order_number}</div>
+                        <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>Order Number</div>
+                        <div className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+                          {order.order_number}
+                        </div>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-gray-400" />
+                      <Calendar className={`h-4 w-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                        }`} />
                       <div>
-                        <div className="font-medium text-gray-900">Order Date</div>
-                        <div className="text-gray-600">{formatDate(order.order_date)}</div>
+                        <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>Order Date</div>
+                        <div className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+                          {formatDate(order.order_date)}
+                        </div>
                       </div>
                     </div>
 
@@ -277,8 +297,11 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                         size="sm"
                       />
                       <div>
-                        <div className="font-medium text-gray-900">Requested By</div>
-                        <div className="text-gray-600">{order.requester_name}</div>
+                        <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>Requested By</div>
+                        <div className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+                          {order.requester_name}
+                        </div>
                       </div>
                     </div>
 
@@ -292,29 +315,39 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                             size="sm"
                           />
                           <div>
-                            <div className="font-medium text-gray-900">
+                            <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>
                               {order.order_status === 'approved' ? 'Approved By' : 'Assigned Approver'}
                             </div>
-                            <div className="text-gray-600">{order.approver_name}</div>
+                            <div className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+                              {order.approver_name}
+                            </div>
                             {order.approved_date && (
-                              <div className="text-xs text-gray-500">{formatDate(order.approved_date)}</div>
+                              <div className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'
+                                }`}>{formatDate(order.approved_date)}</div>
                             )}
                           </div>
                         </>
                       ) : order.order_status === 'pending_review' && !order.approved_by ? (
                         <>
-                          <User className="h-4 w-4 text-orange-400" />
+                          <User className={`h-4 w-4 ${isDarkMode ? 'text-orange-400' : 'text-orange-400'
+                            }`} />
                           <div>
-                            <div className="font-medium text-gray-900">Approver</div>
-                            <div className="text-orange-600 italic">Pending</div>
+                            <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>Approver</div>
+                            <div className={`italic ${isDarkMode ? 'text-orange-400' : 'text-orange-600'
+                              }`}>Pending</div>
                           </div>
                         </>
                       ) : (
                         <>
-                          <User className="h-4 w-4 text-gray-400" />
+                          <User className={`h-4 w-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                            }`} />
                           <div>
-                            <div className="font-medium text-gray-900">Approved By</div>
-                            <div className="text-gray-500 italic">Unassigned</div>
+                            <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>Approved By</div>
+                            <div className={`italic ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`}>Unassigned</div>
                           </div>
                         </>
                       )}
@@ -324,37 +357,49 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
               </Card>
 
               {/* Right Column - Product & Store Info */}
-              <Card>
+              <Card className={isDarkMode ? 'bg-gray-700 border-gray-600' : ''}>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
+                  <CardTitle className={`flex items-center gap-2 text-lg ${isDarkMode ? 'text-white' : ''
+                    }`}>
                     <ShoppingCart className="h-5 w-5" />
                     Product & Delivery
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <div className="font-medium text-gray-900 mb-1">{order.product_name}</div>
-                    <div className="text-sm text-gray-600">{order.brand} • {order.category}</div>
+                    <div className={`font-medium mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>{order.product_name}</div>
+                    <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>{order.brand} • {order.category}</div>
                   </div>
 
-                  <div className="border-t pt-4">
+                  <div className={`border-t pt-4 ${isDarkMode ? 'border-gray-600' : ''
+                    }`}>
                     <div className="flex items-center gap-2 mb-2">
-                      <Store className="h-4 w-4 text-gray-400" />
-                      <span className="font-medium text-gray-900">Delivery Store</span>
+                      <Store className={`h-4 w-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                        }`} />
+                      <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>Delivery Store</span>
                     </div>
                     <div>
-                      <div className="font-medium">{order.to_store_name}</div>
-                      <div className="text-sm text-gray-600">{order.to_store_region}</div>
+                      <div className={`font-medium ${isDarkMode ? 'text-white' : ''
+                        }`}>{order.to_store_name}</div>
+                      <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>{order.to_store_region}</div>
                     </div>
                   </div>
 
                   {order.from_store_name && (
-                    <div className="border-t pt-4">
+                    <div className={`border-t pt-4 ${isDarkMode ? 'border-gray-600' : ''
+                      }`}>
                       <div className="flex items-center gap-2 mb-2">
-                        <Building2 className="h-4 w-4 text-gray-400" />
-                        <span className="font-medium text-gray-900">Source Store</span>
+                        <Building2 className={`h-4 w-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                          }`} />
+                        <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>Source Store</span>
                       </div>
-                      <div className="font-medium">{order.from_store_name}</div>
+                      <div className={`font-medium ${isDarkMode ? 'text-white' : ''
+                        }`}>{order.from_store_name}</div>
                     </div>
                   )}
                 </CardContent>
@@ -362,10 +407,11 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
             </div>
 
             {/* Editable Fields */}
-            <Card>
+            <Card className={isDarkMode ? 'bg-gray-700 border-gray-600' : ''}>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-lg">
+                  <span className={`flex items-center gap-2 text-lg ${isDarkMode ? 'text-white' : ''
+                    }`}>
                     <Edit3 className="h-5 w-5" />
                     Order Modifications
                   </span>
@@ -374,6 +420,9 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                       variant="outline"
                       size="sm"
                       onClick={() => setIsEditing(true)}
+                      className={isDarkMode
+                        ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white'
+                        : ''}
                     >
                       <Edit3 className="h-4 w-4 mr-2" />
                       Edit Order
@@ -384,7 +433,8 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
               <CardContent className="space-y-4">
                 {/* Quantity Field */}
                 <div>
-                  <Label htmlFor="quantity" className="text-sm font-medium">
+                  <Label htmlFor="quantity" className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : ''
+                    }`}>
                     Quantity (Cases)
                   </Label>
                   <div className="mt-1">
@@ -396,7 +446,8 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                         max="10000"
                         value={quantity}
                         onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                        className="w-full"
+                        className={`w-full ${isDarkMode ? 'bg-gray-600 border-gray-500 text-white' : ''
+                          }`}
                         onKeyDown={(e) => {
                           if (e.key === '-' || e.key === '.' || e.key === 'e' || e.key === 'E') {
                             e.preventDefault();
@@ -404,7 +455,8 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                         }}
                       />
                     ) : (
-                      <div className="text-lg font-semibold text-gray-900">
+                      <div className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
                         {order.quantity_cases.toLocaleString()} cases
                       </div>
                     )}
@@ -413,7 +465,8 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
 
                 {/* Notes Field */}
                 <div>
-                  <Label htmlFor="notes" className="text-sm font-medium">
+                  <Label htmlFor="notes" className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : ''
+                    }`}>
                     Order Notes
                   </Label>
                   <div className="mt-1">
@@ -422,14 +475,17 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                         id="notes"
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
-                        className="w-full"
+                        className={`w-full ${isDarkMode ? 'bg-gray-600 border-gray-500 text-white placeholder-gray-400' : ''
+                          }`}
                         rows={3}
                         placeholder="Add any special instructions or notes for this order..."
                       />
                     ) : (
-                      <div className="min-h-[60px] p-3 bg-gray-50 rounded-md text-gray-900">
+                      <div className={`min-h-[60px] p-3 rounded-md ${isDarkMode ? 'bg-gray-600 text-white' : 'bg-gray-50 text-gray-900'
+                        }`}>
                         {order.notes || (
-                          <span className="text-gray-500 italic">No notes provided</span>
+                          <span className={`italic ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                            }`}>No notes provided</span>
                         )}
                       </div>
                     )}
@@ -438,11 +494,12 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
 
                 {/* Action Buttons - Only show when editing */}
                 {isEditing && (
-                  <div className="flex items-center gap-3 pt-4 border-t">
+                  <div className={`flex items-center gap-3 pt-4 border-t ${isDarkMode ? 'border-gray-600' : ''
+                    }`}>
                     <Button
                       onClick={handleModifyOrder}
                       disabled={isUpdatingOrder || !hasChanges}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      className={isDarkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}
                     >
                       {isUpdatingOrder ? (
                         <>
@@ -460,6 +517,9 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                       variant="outline"
                       onClick={resetForm}
                       disabled={isUpdatingOrder}
+                      className={isDarkMode
+                        ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white'
+                        : ''}
                     >
                       <X className="h-4 w-4 mr-2" />
                       Cancel
@@ -470,7 +530,8 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
             </Card>
 
             {/* Action Buttons */}
-            <div className="flex items-center justify-between pt-4 border-t">
+            <div className={`flex items-center justify-between pt-4 border-t ${isDarkMode ? 'border-gray-700' : ''
+              }`}>
               <div>
                 {canModify && (
                   <Button
@@ -487,6 +548,9 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                 variant="outline"
                 onClick={onClose}
                 disabled={isUpdatingOrder}
+                className={isDarkMode
+                  ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white'
+                  : ''}
               >
                 Close
               </Button>
@@ -497,38 +561,47 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
 
       {/* Cancel Order Confirmation Modal */}
       <Dialog open={showCancelModal} onOpenChange={setShowCancelModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className={`max-w-md ${isDarkMode ? 'bg-gray-800 border-gray-700' : ''
+          }`}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl text-red-600">
+            <DialogTitle className={`flex items-center gap-2 text-xl text-red-600 ${isDarkMode ? 'text-red-400' : ''
+              }`}>
               <Ban className="h-5 w-5" />
               Cancel Order
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
-            <Alert className="border-red-200 bg-red-50">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <AlertDescription className="text-red-700">
-                This will cancel order #{order?.order_number}. This action cannot be undone.
+            <Alert className={isDarkMode
+              ? 'border-red-700 bg-red-900/20'
+              : 'border-red-200 bg-red-50'
+            }>
+              <AlertTriangle className={`h-4 w-4 ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                }`} />
+              <AlertDescription className={isDarkMode ? 'text-red-300' : 'text-red-700'}>
+                This will cancel order {order?.order_number}. This action cannot be undone.
               </AlertDescription>
             </Alert>
 
             <div>
-              <Label htmlFor="cancellation-reason" className="text-sm font-medium">
+              <Label htmlFor="cancellation-reason" className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : ''
+                }`}>
                 Reason for cancellation *
               </Label>
               <Textarea
                 id="cancellation-reason"
                 value={cancellationReason}
                 onChange={(e) => setCancellationReason(e.target.value)}
-                className="w-full mt-1"
+                className={`w-full mt-1 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : ''
+                  }`}
                 rows={3}
                 placeholder="Please provide a reason for cancelling this order..."
                 required
               />
             </div>
 
-            <div className="flex items-center gap-3 pt-4 border-t">
+            <div className={`flex items-center gap-3 pt-4 border-t ${isDarkMode ? 'border-gray-700' : ''
+              }`}>
               <Button
                 variant="destructive"
                 onClick={handleCancelOrder}
@@ -553,6 +626,9 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                   setCancellationReason('');
                 }}
                 disabled={isUpdatingOrder}
+                className={isDarkMode
+                  ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white'
+                  : ''}
               >
                 Cancel
               </Button>

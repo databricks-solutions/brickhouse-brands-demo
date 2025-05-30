@@ -2,9 +2,11 @@ import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowUp, ArrowDown, TrendingUp, Package, BarChart, Calendar, Loader2 } from "lucide-react";
 import { useInventoryStore } from "@/store/useInventoryStore";
+import { useDarkModeStore } from "@/store/useDarkModeStore";
 
 export const KPICards = () => {
   const { kpiData, lowStockCount, isLoadingKPIs, error, fetchKPIData } = useInventoryStore();
+  const { isDarkMode } = useDarkModeStore();
 
   useEffect(() => {
     fetchKPIData();
@@ -17,9 +19,9 @@ export const KPICards = () => {
   };
 
   const getChangeColor = (type: string) => {
-    if (type === "positive") return "text-green-600";
-    if (type === "negative") return "text-red-600";
-    return "text-gray-600";
+    if (type === "positive") return isDarkMode ? "text-green-400" : "text-green-600";
+    if (type === "negative") return isDarkMode ? "text-red-400" : "text-red-600";
+    return isDarkMode ? "text-gray-400" : "text-gray-600";
   };
 
   const formatCurrency = (value: number) => {
@@ -78,11 +80,11 @@ export const KPICards = () => {
   if (error) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="col-span-full">
+        <Card className={`col-span-full ${isDarkMode ? 'bg-gray-800 border-gray-700' : ''}`}>
           <CardContent className="pt-6">
-            <div className="text-center text-red-600">
+            <div className={`text-center ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
               <p className="font-medium">Error loading KPIs</p>
-              <p className="text-sm text-gray-600 mt-1">{error}</p>
+              <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{error}</p>
             </div>
           </CardContent>
         </Card>
@@ -94,16 +96,22 @@ export const KPICards = () => {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((index) => (
-          <Card key={index} className="hover:shadow-lg transition-shadow">
+          <Card key={index} className={`hover:shadow-lg transition-shadow ${isDarkMode ? 'bg-gray-800 border-gray-700' : ''
+            }`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                <div className="h-4 w-20 bg-gray-200 rounded animate-pulse"></div>
+              <CardTitle className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                <div className={`h-4 w-20 rounded animate-pulse ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                  }`}></div>
               </CardTitle>
-              <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
+              <Loader2 className={`h-4 w-4 animate-spin ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                }`} />
             </CardHeader>
             <CardContent>
-              <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mb-2"></div>
-              <div className="h-4 w-24 bg-gray-200 rounded animate-pulse"></div>
+              <div className={`h-8 w-16 rounded animate-pulse mb-2 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                }`}></div>
+              <div className={`h-4 w-24 rounded animate-pulse ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                }`}></div>
             </CardContent>
           </Card>
         ))}
@@ -116,21 +124,25 @@ export const KPICards = () => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {kpiCards.map((kpi, index) => (
-        <Card key={index} className="hover:shadow-lg transition-shadow">
+        <Card key={index} className={`hover:shadow-lg transition-shadow ${isDarkMode ? 'bg-gray-800 border-gray-700' : ''
+          }`}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
+            <CardTitle className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}>
               {kpi.title}
             </CardTitle>
-            <kpi.icon className="h-4 w-4 text-gray-600" />
+            <kpi.icon className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`} />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-900">{kpi.value}</div>
+            <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{kpi.value}</div>
             <div className="flex items-center space-x-1 text-xs mt-1">
               <span className={`flex items-center ${getChangeColor(kpi.changeType)}`}>
                 {getChangeIcon(kpi.changeType)}
                 {kpi.change}
               </span>
-              <span className="text-gray-500">{kpi.description}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>{kpi.description}</span>
             </div>
           </CardContent>
         </Card>

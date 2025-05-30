@@ -5,6 +5,7 @@ import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Loader2, ChevronLeft, ChevronRight, Package, Store, User, Calendar, Edit3 } from "lucide-react";
 import { useOrderStore } from "@/store/useOrderStore";
 import { useInventoryStore } from "@/store/useInventoryStore";
+import { useDarkModeStore } from "@/store/useDarkModeStore";
 import { Order } from "@/api/types";
 import { ModifyOrderModal } from "./ModifyOrderModal";
 
@@ -65,6 +66,9 @@ export const OrdersTable = () => {
   // Get the current filters from the inventory store
   const { filters: inventoryFilters } = useInventoryStore();
 
+  // Get dark mode state
+  const { isDarkMode } = useDarkModeStore();
+
   const [pageSize] = useState(10);
   const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
   const [selectedOrderForModify, setSelectedOrderForModify] = useState<Order | null>(null);
@@ -105,11 +109,12 @@ export const OrdersTable = () => {
   };
 
   const renderMobileCard = (order: Order) => (
-    <div key={order.order_id} className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
+    <div key={order.order_id} className={`rounded-lg border p-4 space-y-3 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
       <div className="flex justify-between items-start">
         <div>
-          <p className="font-medium text-gray-900">#{order.order_number}</p>
-          <p className="text-sm text-gray-600">{order.product_name}</p>
+          <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{order.order_number}</p>
+          <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{order.product_name}</p>
         </div>
         <Badge variant={getStatusBadgeVariant(order.order_status)}>
           {getStatusText(order.order_status)}
@@ -118,12 +123,12 @@ export const OrdersTable = () => {
 
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div className="flex items-center gap-2">
-          <Package className="h-4 w-4 text-gray-400" />
-          <span>{order.quantity_cases} cases</span>
+          <Package className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
+          <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>{order.quantity_cases} cases</span>
         </div>
         <div className="flex items-center gap-2">
-          <Store className="h-4 w-4 text-gray-400" />
-          <span>{order.to_store_name}</span>
+          <Store className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
+          <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>{order.to_store_name}</span>
         </div>
         <div className="flex items-center gap-2">
           <UserAvatar
@@ -132,61 +137,79 @@ export const OrdersTable = () => {
             lastName={order.requester_name?.split(' ')[1]}
             size="sm"
           />
-          <span>{order.requester_name}</span>
+          <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>{order.requester_name}</span>
         </div>
         <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-gray-400" />
-          <span>{formatDate(order.order_date)}</span>
+          <Calendar className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
+          <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>{formatDate(order.order_date)}</span>
         </div>
       </div>
     </div>
   );
 
   const renderSkeletonRow = () => (
-    <tr className="border-b border-gray-100">
+    <tr className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-100'}`}>
       <td className="py-3 px-4">
-        <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
+        <div className={`h-4 rounded animate-pulse w-20 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+          }`}></div>
       </td>
       <td className="py-3 px-4">
         <div className="space-y-2">
-          <div className="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
-          <div className="h-3 bg-gray-200 rounded animate-pulse w-24"></div>
+          <div className={`h-4 rounded animate-pulse w-32 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+            }`}></div>
+          <div className={`h-3 rounded animate-pulse w-24 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+            }`}></div>
         </div>
       </td>
       <td className="py-3 px-4">
-        <div className="h-4 bg-gray-200 rounded animate-pulse w-16"></div>
+        <div className={`h-4 rounded animate-pulse w-16 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+          }`}></div>
       </td>
       <td className="py-3 px-4">
         <div className="space-y-2">
-          <div className="h-4 bg-gray-200 rounded animate-pulse w-28"></div>
-          <div className="h-3 bg-gray-200 rounded animate-pulse w-20"></div>
+          <div className={`h-4 rounded animate-pulse w-28 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+            }`}></div>
+          <div className={`h-3 rounded animate-pulse w-20 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+            }`}></div>
         </div>
       </td>
       <td className="py-3 px-4">
-        <div className="h-4 bg-gray-200 rounded animate-pulse w-24"></div>
+        <div className={`h-4 rounded animate-pulse w-24 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+          }`}></div>
       </td>
       <td className="py-3 px-4">
-        <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
+        <div className={`h-4 rounded animate-pulse w-20 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+          }`}></div>
       </td>
       <td className="py-3 px-4">
-        <div className="h-6 bg-gray-200 rounded animate-pulse w-16"></div>
+        <div className={`h-6 rounded animate-pulse w-16 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+          }`}></div>
       </td>
-      <td className="py-3 px-4">
-        <div className="h-6 bg-gray-200 rounded animate-pulse w-24"></div>
+      <td className="py-3 px-4 text-center">
+        <div className="flex justify-center">
+          <div className={`h-6 rounded animate-pulse w-20 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+            }`}></div>
+        </div>
+      </td>
+      <td className="py-3 px-4 text-center">
+        <div className="flex justify-center">
+          <div className={`h-6 rounded animate-pulse w-16 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+            }`}></div>
+        </div>
       </td>
     </tr>
   );
 
   const renderEmptyRow = () => (
-    <tr className="border-b border-gray-100">
+    <tr className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-100'}`}>
       <td className="py-3 px-4">&nbsp;</td>
       <td className="py-3 px-4">&nbsp;</td>
       <td className="py-3 px-4">&nbsp;</td>
       <td className="py-3 px-4">&nbsp;</td>
       <td className="py-3 px-4">&nbsp;</td>
       <td className="py-3 px-4">&nbsp;</td>
-      <td className="py-3 px-4">&nbsp;</td>
-      <td className="py-3 px-4">&nbsp;</td>
+      <td className="py-3 px-4 text-center">&nbsp;</td>
+      <td className="py-3 px-4 text-center">&nbsp;</td>
     </tr>
   );
 
@@ -203,24 +226,25 @@ export const OrdersTable = () => {
       // Show actual order rows
       orders.forEach((order) => {
         rows.push(
-          <tr key={order.order_id} className="border-b border-gray-100 hover:bg-gray-50">
+          <tr key={order.order_id} className={`border-b ${isDarkMode ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-100 hover:bg-gray-50'
+            }`}>
             <td className="py-3 px-4">
-              <span className="font-medium text-blue-600">#{order.order_number}</span>
+              <span className={`font-medium ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>{order.order_number}</span>
             </td>
             <td className="py-3 px-4">
               <div>
-                <p className="font-medium text-gray-900">{order.product_name}</p>
-                <p className="text-sm text-gray-600">{order.brand} • {order.category}</p>
+                <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{order.product_name}</p>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{order.brand} • {order.category}</p>
               </div>
             </td>
             <td className="py-3 px-4">
-              <span className="font-medium">{order.quantity_cases}</span>
-              <span className="text-gray-600 ml-1">cases</span>
+              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{order.quantity_cases}</span>
+              <span className={`ml-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>cases</span>
             </td>
             <td className="py-3 px-4">
               <div>
-                <p className="font-medium text-gray-900">{order.to_store_name}</p>
-                <p className="text-sm text-gray-600">{order.to_store_region}</p>
+                <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{order.to_store_name}</p>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{order.to_store_region}</p>
               </div>
             </td>
             <td className="py-3 px-4">
@@ -231,31 +255,38 @@ export const OrdersTable = () => {
                   lastName={order.requester_name?.split(' ')[1]}
                   size="sm"
                 />
-                <span className="text-gray-900">{order.requester_name}</span>
+                <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{order.requester_name}</span>
               </div>
             </td>
             <td className="py-3 px-4">
-              <span className="text-gray-600">{formatDate(order.order_date)}</span>
+              <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>{formatDate(order.order_date)}</span>
             </td>
-            <td className="py-3 px-4">
-              <Badge variant={getStatusBadgeVariant(order.order_status)}>
-                {getStatusText(order.order_status)}
-              </Badge>
+            <td className="py-3 px-4 text-center">
+              <div className="flex justify-center">
+                <Badge variant={getStatusBadgeVariant(order.order_status)} className="min-w-[100px] justify-center">
+                  {getStatusText(order.order_status)}
+                </Badge>
+              </div>
             </td>
-            <td className="py-3 px-4">
-              {canModifyOrder(order) ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleModifyOrder(order)}
-                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                >
-                  <Edit3 className="h-4 w-4 mr-1" />
-                  Modify
-                </Button>
-              ) : (
-                <span className="text-gray-400 text-sm">-</span>
-              )}
+            <td className="py-3 px-4 text-center">
+              <div className="flex justify-center">
+                {canModifyOrder(order) ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleModifyOrder(order)}
+                    className={`${isDarkMode
+                      ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white'
+                      : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
+                      }`}
+                  >
+                    <Edit3 className="h-4 w-4 mr-1" />
+                    Modify
+                  </Button>
+                ) : (
+                  <span className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>-</span>
+                )}
+              </div>
             </td>
           </tr>
         );
@@ -274,9 +305,9 @@ export const OrdersTable = () => {
   if (error) {
     return (
       <div className="pt-6">
-        <div className="text-center text-red-600">
+        <div className={`text-center ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
           <p className="font-medium">Error loading orders</p>
-          <p className="text-sm text-gray-600 mt-1">{error}</p>
+          <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{error}</p>
         </div>
       </div>
     );
@@ -288,25 +319,26 @@ export const OrdersTable = () => {
       <div className="hidden md:block overflow-x-auto relative">
         {/* Loading overlay for desktop */}
         {isLoading && (
-          <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">
+          <div className={`absolute inset-0 bg-opacity-75 flex items-center justify-center z-10 ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
             <div className="flex items-center">
-              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-              <span className="ml-2 text-gray-600">Loading...</span>
+              <Loader2 className={`h-6 w-6 animate-spin ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
+              <span className={`ml-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Loading...</span>
             </div>
           </div>
         )}
 
         <table className="w-full">
           <thead>
-            <tr className="border-b border-gray-200">
-              <th className="text-left py-3 px-4 font-medium text-gray-900">Order #</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-900">Product</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-900">Quantity</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-900">To Store</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-900">Requested By</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-900">Date</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-900">Actions</th>
+            <tr className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Order #</th>
+              <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Product</th>
+              <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Quantity</th>
+              <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>To Store</th>
+              <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Requested By</th>
+              <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Date</th>
+              <th className={`text-center py-3 px-4 font-medium w-32 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Status</th>
+              <th className={`text-center py-3 px-4 font-medium w-28 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Actions</th>
             </tr>
           </thead>
           <tbody style={{ minHeight: `${pageSize * 60}px` }}>
@@ -320,13 +352,13 @@ export const OrdersTable = () => {
         {isLoading ? (
           // Show loading state for mobile
           <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-            <span className="ml-2 text-gray-600">Loading orders...</span>
+            <Loader2 className={`h-8 w-8 animate-spin ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
+            <span className={`ml-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Loading orders...</span>
           </div>
         ) : orders.length === 0 ? (
           <div className="text-center py-12">
-            <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No orders found</p>
+            <Package className={`h-12 w-12 mx-auto mb-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+            <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>No orders found</p>
           </div>
         ) : (
           orders.map(renderMobileCard)
@@ -335,8 +367,10 @@ export const OrdersTable = () => {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
-          <div className="flex items-center gap-4 text-sm text-gray-600">
+        <div className={`flex items-center justify-between mt-6 pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          }`}>
+          <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>
             <span>Page {currentPage} of {totalPages}</span>
             <span>•</span>
             <span>{totalItems} total orders</span>
@@ -347,6 +381,7 @@ export const OrdersTable = () => {
               size="sm"
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1 || isLoading}
+              className={isDarkMode ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white' : ''}
             >
               <ChevronLeft className="h-4 w-4" />
               Previous
@@ -356,6 +391,7 @@ export const OrdersTable = () => {
               size="sm"
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages || isLoading}
+              className={isDarkMode ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white' : ''}
             >
               Next
               <ChevronRight className="h-4 w-4" />
@@ -367,8 +403,8 @@ export const OrdersTable = () => {
       {/* Empty state - only show when not loading and no orders */}
       {!isLoading && orders.length === 0 && (
         <div className="text-center py-12 hidden md:block">
-          <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">No orders found</p>
+          <Package className={`h-12 w-12 mx-auto mb-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+          <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>No orders found</p>
         </div>
       )}
 

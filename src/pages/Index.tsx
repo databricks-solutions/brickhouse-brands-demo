@@ -9,6 +9,7 @@ import { useStoreStore } from "@/store/useStoreStore";
 import { useProductStore } from "@/store/useProductStore";
 import { useInventoryStore } from "@/store/useInventoryStore";
 import { useUserStore } from "@/store/useUserStore";
+import { useDarkModeStore } from "@/store/useDarkModeStore";
 
 const Index = () => {
   const [selectedLocation, setSelectedLocation] = useState("all");
@@ -26,6 +27,9 @@ const Index = () => {
 
   // Get user store for initialization
   const { initializeCurrentUser } = useUserStore();
+
+  // Get dark mode state
+  const { isDarkMode } = useDarkModeStore();
 
   // Initialize current user on mount
   useEffect(() => {
@@ -87,25 +91,26 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* Navigation Bar */}
       <Navigation activeTab={activeTab} onTabChange={handleTabChange} />
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto p-6 space-y-6 pt-24">
         {/* Shared Filters */}
-        <Card>
+        <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
           <CardContent className="pt-6">
             <div className="flex flex-wrap gap-4 items-center">
               <div className="flex-1 min-w-[200px]">
-                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
                   Region
                 </label>
                 <Select value={selectedLocation} onValueChange={handleLocationChange}>
-                  <SelectTrigger>
+                  <SelectTrigger className={isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className={isDarkMode ? 'bg-gray-700 border-gray-600' : ''}>
                     {isLoadingStores ? (
                       <SelectItem value="loading" disabled>
                         <div className="flex items-center gap-2">
@@ -115,7 +120,11 @@ const Index = () => {
                       </SelectItem>
                     ) : (
                       locationOptions.map((location) => (
-                        <SelectItem key={location.value} value={location.value}>
+                        <SelectItem
+                          key={location.value}
+                          value={location.value}
+                          className={isDarkMode ? 'text-gray-300 hover:bg-gray-600 focus:bg-gray-600' : ''}
+                        >
                           {location.label}
                         </SelectItem>
                       ))
@@ -125,14 +134,15 @@ const Index = () => {
               </div>
 
               <div className="flex-1 min-w-[200px]">
-                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
                   Category
                 </label>
                 <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-                  <SelectTrigger>
+                  <SelectTrigger className={isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className={isDarkMode ? 'bg-gray-700 border-gray-600' : ''}>
                     {isLoadingCategories ? (
                       <SelectItem value="loading" disabled>
                         <div className="flex items-center gap-2">
@@ -142,7 +152,11 @@ const Index = () => {
                       </SelectItem>
                     ) : (
                       categoryDropdownOptions.map((category) => (
-                        <SelectItem key={category.value} value={category.value}>
+                        <SelectItem
+                          key={category.value}
+                          value={category.value}
+                          className={isDarkMode ? 'text-gray-300 hover:bg-gray-600 focus:bg-gray-600' : ''}
+                        >
                           {category.label}
                         </SelectItem>
                       ))

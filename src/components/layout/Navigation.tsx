@@ -8,8 +8,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Settings, LogOut, User } from "lucide-react";
+import { Settings, LogOut, Moon, Sun } from "lucide-react";
 import { useUserStore } from "@/store/useUserStore";
+import { useDarkModeStore } from "@/store/useDarkModeStore";
 
 interface NavigationProps {
   activeTab: 'order-management' | 'insights';
@@ -18,6 +19,7 @@ interface NavigationProps {
 
 export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
   const { currentUser } = useUserStore();
+  const { isDarkMode, toggleDarkMode } = useDarkModeStore();
 
   // Handle both snake_case (API) and camelCase field names
   const user = currentUser ? {
@@ -40,9 +42,8 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
     createdAt: new Date(),
   };
 
-  const handleSettings = () => {
-    console.log('Settings clicked');
-    // TODO: Implement settings functionality
+  const handleToggleDarkMode = () => {
+    toggleDarkMode();
   };
 
   const handleLogout = () => {
@@ -51,7 +52,10 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm border-b border-gray-200">
+    <nav className={`fixed top-0 left-0 right-0 z-50 shadow-sm border-b ${isDarkMode
+      ? 'bg-gray-800 border-gray-600'
+      : 'bg-white border-gray-200'
+      }`}>
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex justify-between items-center h-16">
           {/* Left section: Logo and Company Name */}
@@ -65,40 +69,46 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
                   className="w-8 h-8"
                 />
               </div>
-              <span className="text-xl font-semibold text-gray-900">
+              <span className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>
                 Brickstore Brands
               </span>
             </div>
 
             {/* Vertical separator */}
-            <div className="h-6 w-px bg-gray-300"></div>
+            <div className={`h-6 w-px ${isDarkMode ? 'bg-gray-600' : 'bg-gray-300'
+              }`}></div>
 
             {/* Navigation buttons */}
             <div className="flex space-x-1">
               <Button
                 variant="ghost"
-                className={`px-4 py-2 font-medium transition-colors relative ${activeTab === 'order-management'
-                  ? 'text-blue-600 hover:text-blue-700'
-                  : 'text-gray-600 hover:text-gray-900'
+                className={`px-4 py-2 font-medium transition-colors relative ${isDarkMode ? 'hover:bg-gray-800' : ''
+                  } ${activeTab === 'order-management'
+                    ? (isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700')
+                    : (isDarkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900')
                   }`}
                 onClick={() => onTabChange('order-management')}
               >
                 Order Management
                 {activeTab === 'order-management' && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+                  <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${isDarkMode ? 'bg-blue-400' : 'bg-blue-600'
+                    }`} />
                 )}
               </Button>
               <Button
                 variant="ghost"
-                className={`px-4 py-2 font-medium transition-colors relative ${activeTab === 'insights'
-                  ? 'text-blue-600 hover:text-blue-700'
-                  : 'text-gray-600 hover:text-gray-900'
+                className={`px-4 py-2 font-medium transition-colors relative ${isDarkMode ? 'hover:bg-gray-800' : ''
+                  } ${activeTab === 'insights'
+                    ? (isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700')
+                    : (isDarkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900')
                   }`}
                 onClick={() => onTabChange('insights')}
               >
                 Insights
                 {activeTab === 'insights' && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+                  <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${isDarkMode ? 'bg-blue-400' : 'bg-blue-600'
+                    }`} />
                 )}
               </Button>
             </div>
@@ -108,31 +118,49 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
           <div className="flex items-center">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                <Button variant="ghost" className={`relative h-10 w-10 rounded-full ${isDarkMode ? 'hover:bg-gray-800' : ''
+                  }`}>
                   <Avatar className="h-10 w-10">
                     <AvatarImage
                       src={user.avatarUrl}
                       alt={`${user.firstName} ${user.lastName}`}
                     />
-                    <AvatarFallback className="bg-blue-100 text-blue-600">
+                    <AvatarFallback className={
+                      isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-600'
+                    }>
                       {user.firstName.charAt(0)}{user.lastName.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end">
+              <DropdownMenuContent className={`w-56 ${isDarkMode ? 'bg-gray-800 border-gray-700' : ''
+                }`} align="end">
                 <div className="flex flex-col space-y-1 p-2">
-                  <p className="text-sm font-medium leading-none">{user.firstName} {user.lastName}</p>
-                  <p className="text-xs leading-none text-muted-foreground">
+                  <p className={`text-sm font-medium leading-none ${isDarkMode ? 'text-white' : ''
+                    }`}>{user.firstName} {user.lastName}</p>
+                  <p className={`text-xs leading-none ${isDarkMode ? 'text-gray-400' : 'text-muted-foreground'
+                    }`}>
                     {user.email}
                   </p>
                 </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSettings} className="cursor-pointer">
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
+                <DropdownMenuSeparator className={isDarkMode ? 'bg-gray-700' : ''} />
+                <DropdownMenuItem
+                  onClick={handleToggleDarkMode}
+                  className={`cursor-pointer ${isDarkMode ? 'text-gray-300 hover:text-white hover:bg-gray-700' : ''
+                    }`}
+                >
+                  {isDarkMode ? (
+                    <Sun className="mr-2 h-4 w-4" />
+                  ) : (
+                    <Moon className="mr-2 h-4 w-4" />
+                  )}
+                  <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className={`cursor-pointer ${isDarkMode ? 'text-gray-300 hover:text-white hover:bg-gray-700' : ''
+                    }`}
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>

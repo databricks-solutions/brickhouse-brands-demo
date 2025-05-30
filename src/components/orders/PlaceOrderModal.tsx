@@ -13,6 +13,7 @@ import { useStoreStore } from "@/store/useStoreStore";
 import { useInventoryStore } from "@/store/useInventoryStore";
 import { useOrderStore } from "@/store/useOrderStore";
 import { useUserStore } from "@/store/useUserStore";
+import { useDarkModeStore } from "@/store/useDarkModeStore";
 import { Product as ApiProduct, OrderCreate } from "@/api/types";
 
 interface PlaceOrderModalProps {
@@ -71,6 +72,9 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
   const [selectedToStore, setSelectedToStore] = useState("");
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const { toast } = useToast();
+
+  // Get dark mode state
+  const { isDarkMode } = useDarkModeStore();
 
   // Debounce search input to avoid API exhaustion
   const debouncedSearchTerm = useDebounce(searchInput, 500);
@@ -303,9 +307,11 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl h-[95vh] flex flex-col">
+      <DialogContent className={`max-w-7xl h-[95vh] flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : ''
+        }`}>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-3 text-2xl font-bold">
+          <DialogTitle className={`flex items-center gap-3 text-2xl font-bold ${isDarkMode ? 'text-white' : ''
+            }`}>
             <Package className="h-7 w-7" />
             Place New Order
           </DialogTitle>
@@ -316,33 +322,42 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
           <div className="lg:col-span-2 space-y-4 flex flex-col min-h-0">
             <div className="flex gap-4 flex-shrink-0">
               <div className="flex-1 px-1">
-                <Label htmlFor="search" className="mb-3 block">Search Products</Label>
+                <Label htmlFor="search" className={`mb-3 block ${isDarkMode ? 'text-gray-300' : ''
+                  }`}>Search Products</Label>
                 <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
+                  <Search className={`absolute left-3 top-3 h-4 w-4 z-10 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'
+                    }`} />
                   <Input
                     id="search"
                     placeholder="Search by product name or SKU..."
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
-                    className="pl-10 focus-visible:ring-offset-0 focus-visible:ring-2"
+                    className={`pl-10 focus-visible:ring-offset-0 focus-visible:ring-2 ${isDarkMode
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus-visible:ring-blue-500 focus-visible:border-blue-500'
+                      : ''
+                      }`}
                   />
                 </div>
               </div>
             </div>
 
             {/* Separator line */}
-            <div className="border-b border-gray-200 flex-shrink-0"></div>
+            <div className={`border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}></div>
 
             {/* Product List */}
             <div className="flex-1 min-h-0 overflow-hidden">
               <div className="h-full overflow-y-auto space-y-3 pr-2">
                 {isLoadingProducts ? (
                   <div className="flex items-center justify-center h-32">
-                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                    <span className="ml-2 text-gray-600">Loading products...</span>
+                    <Loader2 className={`h-6 w-6 animate-spin ${isDarkMode ? 'text-gray-400' : 'text-gray-400'
+                      }`} />
+                    <span className={`ml-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                      }`}>Loading products...</span>
                   </div>
                 ) : availableProducts.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
                     {searchInput ? "No products found matching your search" : "No products available"}
                   </div>
                 ) : (
@@ -351,16 +366,29 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
                     const stockInfo = getStockLevel(stock.available);
 
                     return (
-                      <Card key={inventoryItem.product_id} className="hover:shadow-md transition-shadow">
+                      <Card key={inventoryItem.product_id} className={`hover:shadow-md transition-shadow ${isDarkMode ? 'bg-gray-700 border-gray-600 hover:bg-gray-650' : ''
+                        }`}>
                         <CardContent className="p-4">
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
-                                <h3 className="font-semibold">{inventoryItem.product_name}</h3>
-                                <Badge variant="outline">#{inventoryItem.product_id}</Badge>
-                                <Badge variant="secondary">{inventoryItem.category}</Badge>
+                                <h3 className={`font-semibold ${isDarkMode ? 'text-white' : ''
+                                  }`}>{inventoryItem.product_name}</h3>
+                                <Badge
+                                  variant="outline"
+                                  className={isDarkMode ? 'border-gray-500 text-white' : ''}
+                                >
+                                  #{inventoryItem.product_id}
+                                </Badge>
+                                <Badge
+                                  variant="secondary"
+                                  className={isDarkMode ? 'bg-gray-700 border-blue-500 text-blue-400' : ''}
+                                >
+                                  {inventoryItem.category}
+                                </Badge>
                               </div>
-                              <div className="flex items-center gap-4 text-sm text-gray-600">
+                              <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                                }`}>
                                 <span className="flex items-center gap-1">
                                   <Package className="h-3 w-3" />
                                   Warehouse Stock
@@ -372,14 +400,16 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="font-semibold">${inventoryItem.unit_price}</div>
+                              <div className={`font-semibold ${isDarkMode ? 'text-white' : ''
+                                }`}>${inventoryItem.unit_price}</div>
                               <div className="flex items-center gap-2 mt-2">
                                 <Input
                                   type="number"
                                   min="1"
                                   max="10000"
                                   defaultValue="1"
-                                  className="w-20 h-8 text-center"
+                                  className={`w-20 h-8 text-center ${isDarkMode ? 'bg-gray-600 border-gray-500 text-white' : ''
+                                    }`}
                                   id={`quantity-${inventoryItem.product_id}`}
                                   onKeyDown={(e) => {
                                     // Prevent negative signs, decimals, and 'e' (scientific notation)
@@ -390,6 +420,7 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
                                 />
                                 <Button
                                   size="sm"
+                                  variant="outline"
                                   onClick={() => {
                                     const quantityInput = document.getElementById(`quantity-${inventoryItem.product_id}`) as HTMLInputElement;
                                     const inputValue = parseInt(quantityInput.value) || 1;
@@ -421,7 +452,10 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
                                     // Reset input
                                     quantityInput.value = "1";
                                   }}
-                                  className="whitespace-nowrap"
+                                  className={`whitespace-nowrap ${isDarkMode
+                                    ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white'
+                                    : ''
+                                    }`}
                                 >
                                   Add to Cart
                                 </Button>
@@ -439,26 +473,32 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
 
           {/* Order Summary */}
           <div className="space-y-4 flex flex-col min-h-0">
-            <Card className="flex-1 flex flex-col min-h-0">
+            <Card className={`flex-1 flex flex-col min-h-0 ${isDarkMode ? 'bg-gray-700 border-gray-600' : ''
+              }`}>
               <CardHeader className="flex-shrink-0">
-                <CardTitle className="text-lg">Order Summary</CardTitle>
+                <CardTitle className={`text-lg ${isDarkMode ? 'text-white' : ''
+                  }`}>Order Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 flex-1 flex flex-col min-h-0">
                 {/* Order Items */}
                 {orderItems.length === 0 ? (
                   <div className="flex-1 flex items-center justify-center">
-                    <p className="text-gray-500 text-center py-4">No items in order</p>
+                    <p className={`text-center py-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                      }`}>No items in order</p>
                   </div>
                 ) : (
                   <>
                     <div className="flex-1 min-h-0 overflow-hidden">
                       <div className="h-full overflow-y-auto space-y-3 pr-2">
                         {orderItems.map((item, index) => (
-                          <div key={`${item.product.product_id}-${index}`} className="border-b pb-3">
+                          <div key={`${item.product.product_id}-${index}`} className={`border-b pb-3 ${isDarkMode ? 'border-gray-600' : ''
+                            }`}>
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex-1">
-                                <div className="font-medium text-sm">{item.product.product_name}</div>
-                                <div className="text-xs text-gray-500">
+                                <div className={`font-medium text-sm ${isDarkMode ? 'text-white' : ''
+                                  }`}>{item.product.product_name}</div>
+                                <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                                  }`}>
                                   {item.product.brand} • {item.product.category}
                                 </div>
                               </div>
@@ -466,7 +506,8 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => removeFromOrder(item)}
-                                className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                className={`h-6 w-6 p-0 text-red-500 hover:text-red-700 ${isDarkMode ? 'hover:bg-red-900/20' : 'hover:bg-red-50'
+                                  }`}
                                 title="Remove item"
                               >
                                 <Trash2 className="h-3 w-3" />
@@ -478,21 +519,29 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
                                   size="sm"
                                   variant="outline"
                                   onClick={() => updateQuantity(item, item.quantity - 1)}
-                                  className="h-6 w-6 p-0"
+                                  className={`h-6 w-6 p-0 ${isDarkMode
+                                    ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white'
+                                    : ''
+                                    }`}
                                 >
                                   <Minus className="h-3 w-3" />
                                 </Button>
-                                <span className="text-sm w-12 text-center">{formatNumber(item.quantity)}</span>
+                                <span className={`text-sm w-12 text-center ${isDarkMode ? 'text-white' : ''
+                                  }`}>{formatNumber(item.quantity)}</span>
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   onClick={() => updateQuantity(item, item.quantity + 1)}
-                                  className="h-6 w-6 p-0"
+                                  className={`h-6 w-6 p-0 ${isDarkMode
+                                    ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white'
+                                    : ''
+                                    }`}
                                 >
                                   <Plus className="h-3 w-3" />
                                 </Button>
                               </div>
-                              <span className="font-medium text-sm">
+                              <span className={`font-medium text-sm ${isDarkMode ? 'text-white' : ''
+                                }`}>
                                 {formatCurrency(item.product.unit_price * item.quantity)}
                               </span>
                             </div>
@@ -501,8 +550,10 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
                       </div>
                     </div>
 
-                    <div className="border-t pt-3 flex-shrink-0">
-                      <div className="flex justify-between items-center font-semibold">
+                    <div className={`border-t pt-3 flex-shrink-0 ${isDarkMode ? 'border-gray-600' : ''
+                      }`}>
+                      <div className={`flex justify-between items-center font-semibold ${isDarkMode ? 'text-white' : ''
+                        }`}>
                         <span>Total:</span>
                         <span>{formatCurrency(getTotalValue())}</span>
                       </div>
@@ -512,31 +563,44 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
 
                 {/* Store Selection - moved here, below total */}
                 <div className="flex-shrink-0">
-                  <Label htmlFor="target-store" className="text-sm font-medium">
+                  <Label htmlFor="target-store" className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : ''
+                    }`}>
                     Delivery Store
                   </Label>
                   <Select value={selectedToStore} onValueChange={setSelectedToStore}>
-                    <SelectTrigger className={`w-full mt-1 ${!selectedToStore && orderItems.length > 0 ? 'border-orange-300 bg-orange-50' : ''}`}>
+                    <SelectTrigger className={`w-full mt-1 ${!selectedToStore && orderItems.length > 0
+                      ? (isDarkMode ? 'border-orange-500 bg-orange-900/20 text-white' : 'border-orange-300 bg-orange-50')
+                      : (isDarkMode ? 'bg-gray-600 border-gray-500 text-white' : '')
+                      }`}>
                       <SelectValue placeholder={isLoadingStores ? "Loading stores..." : "Select delivery store"} />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className={isDarkMode ? 'bg-gray-700 border-gray-600' : ''}>
                       {storeOptions.map((store) => (
-                        <SelectItem key={store.value} value={store.value.toString()}>
+                        <SelectItem
+                          key={store.value}
+                          value={store.value.toString()}
+                          className={isDarkMode
+                            ? 'text-white hover:bg-gray-600 focus:bg-gray-600 hover:text-white focus:text-white'
+                            : ''}
+                        >
                           <div className="flex flex-col">
                             <span className="font-medium">{store.label}</span>
-                            <span className="text-xs text-gray-500">{store.region}</span>
+                            <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`}>{store.region}</span>
                           </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   {selectedToStore ? (
-                    <p className="text-xs text-gray-600 mt-1">
+                    <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
                       <MapPin className="h-3 w-3 inline mr-1" />
                       Orders will be shipped from Main Warehouse to selected store
                     </p>
                   ) : orderItems.length > 0 ? (
-                    <p className="text-xs text-orange-600 mt-1">
+                    <p className={`text-xs mt-1 ${isDarkMode ? 'text-orange-400' : 'text-orange-600'
+                      }`}>
                       Please select a delivery store to continue
                     </p>
                   ) : null}
@@ -545,7 +609,8 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
                 <div className="space-y-2 flex-shrink-0">
                   <Button
                     onClick={submitOrder}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium"
+                    className={`w-full font-medium ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      }`}
                     disabled={orderItems.length === 0 || !selectedToStore || isCreatingOrder}
                   >
                     {isCreatingOrder ? (
@@ -564,7 +629,10 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
                   <Button
                     onClick={onClose}
                     variant="outline"
-                    className="w-full"
+                    className={`w-full ${isDarkMode
+                      ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white'
+                      : ''
+                      }`}
                     disabled={isCreatingOrder}
                   >
                     Cancel
