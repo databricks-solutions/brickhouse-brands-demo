@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrderStore } from "@/store/useOrderStore";
+import { useUserStore } from "@/store/useUserStore";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
 import { Order } from "@/api/types";
 import { UserAvatar } from "@/components/ui/UserAvatar";
@@ -103,6 +104,7 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
 
   const { toast } = useToast();
   const { isUpdatingOrder, updateOrder, cancelOrder, refreshOrders } = useOrderStore();
+  const { currentRegionalManager, initializeCurrentRegionalManager, isLoadingRegionalManager } = useUserStore();
   const { isDarkMode } = useDarkModeStore();
 
   // Initialize form values when order changes
@@ -115,6 +117,13 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
       setCancellationReason('');
     }
   }, [order]);
+
+  // Fetch regional manager when modal opens
+  useEffect(() => {
+    if (isOpen && !currentRegionalManager) {
+      initializeCurrentRegionalManager();
+    }
+  }, [isOpen, currentRegionalManager, initializeCurrentRegionalManager]);
 
   const canModify = order && (order.order_status === 'pending_review' || order.order_status === 'approved');
 
@@ -276,14 +285,14 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                 <CardHeader>
                   <CardTitle className={`flex items-center gap-2 text-lg ${isDarkMode ? 'text-white' : ''
                     }`}>
-                    <Package className="h-5 w-5" />
+                    <Package className="h-6 w-6" />
                     Order Details
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="flex items-center gap-2">
-                      <Hash className={`h-4 w-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                      <Hash className={`h-8 w-8 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
                         }`} />
                       <div>
                         <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
@@ -295,7 +304,7 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Calendar className={`h-4 w-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                      <Calendar className={`h-8 w-8 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
                         }`} />
                       <div>
                         <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
@@ -311,7 +320,7 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                         avatarUrl={order.requester_avatar_url}
                         firstName={order.requester_name?.split(' ')[0]}
                         lastName={order.requester_name?.split(' ')[1]}
-                        size="sm"
+                        size="md"
                       />
                       <div>
                         <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
@@ -326,10 +335,10 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                       {order.approved_by && order.approver_name ? (
                         <>
                           <UserAvatar
+                            firstName={order.approver_name.split(' ')[0] || ''}
+                            lastName={order.approver_name.split(' ')[1] || ''}
                             avatarUrl={order.approver_avatar_url}
-                            firstName={order.approver_name?.split(' ')[0]}
-                            lastName={order.approver_name?.split(' ')[1]}
-                            size="sm"
+                            size="md"
                           />
                           <div>
                             <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
@@ -339,32 +348,36 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                             <div className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
                               {order.approver_name}
                             </div>
-                            {order.approved_date && (
-                              <div className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'
-                                }`}>{formatDate(order.approved_date)}</div>
-                            )}
                           </div>
                         </>
-                      ) : order.order_status === 'pending_review' && !order.approved_by ? (
+                      ) : order.order_status === 'pending_review' ? (
                         <>
-                          <User className={`h-4 w-4 ${isDarkMode ? 'text-orange-400' : 'text-orange-400'
-                            }`} />
+                          <UserAvatar
+                            firstName=""
+                            lastName=""
+                            avatarUrl=""
+                            size="md"
+                          />
                           <div>
                             <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-                              }`}>Approver</div>
-                            <div className={`italic ${isDarkMode ? 'text-orange-400' : 'text-orange-600'
-                              }`}>Pending</div>
+                              }`}>Assigned Approver</div>
+                            <div className={`italic ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`}>Unassigned</div>
                           </div>
                         </>
                       ) : (
                         <>
-                          <User className={`h-4 w-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                            }`} />
+                          <UserAvatar
+                            firstName=""
+                            lastName=""
+                            avatarUrl=""
+                            size="md"
+                          />
                           <div>
                             <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-                              }`}>Approved By</div>
+                              }`}>Approver</div>
                             <div className={`italic ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                              }`}>Unassigned</div>
+                              }`}>Not Required</div>
                           </div>
                         </>
                       )}
@@ -378,7 +391,7 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                 <CardHeader>
                   <CardTitle className={`flex items-center gap-2 text-lg ${isDarkMode ? 'text-white' : ''
                     }`}>
-                    <ShoppingCart className="h-5 w-5" />
+                    <ShoppingCart className="h-6 w-6" />
                     Product & Delivery
                   </CardTitle>
                 </CardHeader>
@@ -393,7 +406,7 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                   <div className={`border-t pt-4 ${isDarkMode ? 'border-gray-600' : ''
                     }`}>
                     <div className="flex items-center gap-2 mb-2">
-                      <Store className={`h-4 w-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                      <Store className={`h-8 w-8 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
                         }`} />
                       <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                         }`}>Delivery Store</span>
@@ -410,7 +423,7 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                     <div className={`border-t pt-4 ${isDarkMode ? 'border-gray-600' : ''
                       }`}>
                       <div className="flex items-center gap-2 mb-2">
-                        <Building2 className={`h-4 w-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                        <Building2 className={`h-8 w-8 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
                           }`} />
                         <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                           }`}>Source Store</span>
@@ -429,7 +442,7 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                 <CardTitle className="flex items-center justify-between">
                   <span className={`flex items-center gap-2 text-lg ${isDarkMode ? 'text-white' : ''
                     }`}>
-                    <Edit3 className="h-5 w-5" />
+                    <Edit3 className="h-6 w-6" />
                     Order Modifications
                   </span>
                   {canModify && !isEditing && (

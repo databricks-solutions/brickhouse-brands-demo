@@ -8,10 +8,12 @@ interface UserState {
   users: User[];
   selectedUser: User | null;
   currentUser: User | null; // For authentication context
+  currentRegionalManager: User | null; // For default regional manager (user_id = 26)
 
   // Loading states
   isLoading: boolean;
   isLoadingUser: boolean;
+  isLoadingRegionalManager: boolean; // Added loading state for regional manager
 
   // Error states
   error: string | null;
@@ -49,6 +51,8 @@ interface UserState {
   clearSelectedUser: () => void;
   refreshUsers: () => Promise<void>;
   initializeCurrentUser: () => Promise<void>;
+  initializeCurrentRegionalManager: () => Promise<void>; // Added method for regional manager
+  getCurrentRegionalManager: () => User | null; // Getter method
 }
 
 export const useUserStore = create<UserState>()(
@@ -58,8 +62,10 @@ export const useUserStore = create<UserState>()(
       users: [],
       selectedUser: null,
       currentUser: null,
+      currentRegionalManager: null,
       isLoading: false,
       isLoadingUser: false,
+      isLoadingRegionalManager: false,
       error: null,
 
       // Actions
@@ -301,14 +307,14 @@ export const useUserStore = create<UserState>()(
             // Fallback to demo user if user not found
             set({
               currentUser: {
-                userId: 1,
-                firstName: 'John',
-                lastName: 'Doe',
+                user_id: 1,
+                first_name: 'John',
+                last_name: 'Doe',
                 email: 'john.doe@brickstorebrands.com',
                 username: 'john.doe',
                 role: 'store_manager',
-                avatarUrl: '',
-                createdAt: new Date(),
+                avatar_url: '',
+                created_at: new Date(),
               },
               isLoadingUser: false
             });
@@ -318,19 +324,72 @@ export const useUserStore = create<UserState>()(
           // Fallback to demo user if API fails
           set({
             currentUser: {
-              userId: 1,
-              firstName: 'John',
-              lastName: 'Doe',
+              user_id: 1,
+              first_name: 'John',
+              last_name: 'Doe',
               email: 'john.doe@brickstorebrands.com',
               username: 'john.doe',
               role: 'store_manager',
-              avatarUrl: '',
-              createdAt: new Date(),
+              avatar_url: '',
+              created_at: new Date(),
             },
             isLoadingUser: false,
             error: null // Clear error since we have fallback
           });
         }
+      },
+
+      initializeCurrentRegionalManager: async () => {
+        try {
+          console.log('Initializing current regional manager...');
+          set({ isLoadingRegionalManager: true, error: null });
+          const userData = await UserService.getUserById(26);
+
+          if (userData) {
+            console.log('Regional manager fetched successfully:', userData);
+            set({
+              currentRegionalManager: userData,
+              isLoadingRegionalManager: false
+            });
+          } else {
+            console.log('No regional manager found with ID 26, using fallback');
+            // Fallback to demo user if user not found
+            set({
+              currentRegionalManager: {
+                user_id: 26,
+                first_name: 'Jane',
+                last_name: 'Doe',
+                email: 'jane.doe@brickstorebrands.com',
+                username: 'jane.doe',
+                role: 'regional_manager',
+                avatar_url: '',
+                created_at: new Date(),
+              },
+              isLoadingRegionalManager: false
+            });
+          }
+        } catch (error) {
+          console.log('Error fetching regional manager, using fallback:', error);
+          // Fallback to demo user if API fails
+          set({
+            currentRegionalManager: {
+              user_id: 26,
+              first_name: 'Jane',
+              last_name: 'Doe',
+              email: 'jane.doe@brickstorebrands.com',
+              username: 'jane.doe',
+              role: 'regional_manager',
+              avatar_url: '',
+              created_at: new Date(),
+            },
+            isLoadingRegionalManager: false,
+            error: null // Clear error since we have fallback
+          });
+        }
+      },
+
+      getCurrentRegionalManager: () => {
+        return get().currentRegionalManager;
       }
     }),
     {

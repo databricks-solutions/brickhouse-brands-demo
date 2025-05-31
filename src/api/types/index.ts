@@ -1,15 +1,24 @@
 // User types
 export interface User {
-  userId: number;
+  // Backend returns snake_case fields (actual API format)
+  user_id: number;
   username: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  first_name: string;
+  last_name: string;
   role: 'store_manager' | 'regional_manager';
-  storeId?: number;
+  store_id?: number;
   region?: string;
+  avatar_url?: string;
+  created_at: Date;
+
+  // Legacy camelCase compatibility (for backward compatibility)
+  userId?: number;
+  firstName?: string;
+  lastName?: string;
+  storeId?: number;
   avatarUrl?: string;
-  createdAt: Date;
+  createdAt?: Date;
 }
 
 // Store types (replacing Location)

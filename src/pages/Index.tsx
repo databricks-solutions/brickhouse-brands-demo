@@ -30,7 +30,7 @@ const Index = () => {
   const { setFilters: setOrderFilters } = useOrderStore();
 
   // Get user store for initialization
-  const { initializeCurrentUser } = useUserStore();
+  const { initializeCurrentUser, initializeCurrentRegionalManager } = useUserStore();
 
   // Get dark mode state
   const { isDarkMode } = useDarkModeStore();
@@ -39,6 +39,11 @@ const Index = () => {
   useEffect(() => {
     initializeCurrentUser();
   }, [initializeCurrentUser]);
+
+  // Initialize regional manager on mount
+  useEffect(() => {
+    initializeCurrentRegionalManager();
+  }, [initializeCurrentRegionalManager]);
 
   // Fetch store and region data on mount
   useEffect(() => {

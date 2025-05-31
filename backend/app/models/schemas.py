@@ -130,6 +130,7 @@ class OrderCreate(BaseModel):
     product_id: int
     quantity_cases: int
     requested_by: int
+    approved_by: Optional[int] = None
     notes: Optional[str]
 
 

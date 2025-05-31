@@ -151,7 +151,7 @@ export const OrdersTable = () => {
             avatarUrl={order.requester_avatar_url}
             firstName={order.requester_name?.split(' ')[0]}
             lastName={order.requester_name?.split(' ')[1]}
-            size="sm"
+            size="md"
           />
           <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>{order.requester_name}</span>
         </div>
@@ -269,7 +269,7 @@ export const OrdersTable = () => {
                   avatarUrl={order.requester_avatar_url}
                   firstName={order.requester_name?.split(' ')[0]}
                   lastName={order.requester_name?.split(' ')[1]}
-                  size="sm"
+                  size="md"
                 />
                 <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{order.requester_name}</span>
               </div>

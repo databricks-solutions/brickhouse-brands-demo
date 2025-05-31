@@ -103,6 +103,7 @@ export class OrderService {
     quantityCases: number;
     requestedBy: number;
     notes?: string;
+    approvedBy?: number; // Made optional, will be set by caller if available
   }): Promise<ApiResponse<Order>> {
     try {
       // Convert camelCase to snake_case for backend
@@ -112,6 +113,7 @@ export class OrderService {
         product_id: orderData.productId,
         quantity_cases: orderData.quantityCases,
         requested_by: orderData.requestedBy,
+        approved_by: orderData.approvedBy, // Re-enabled now that backend supports it
         notes: orderData.notes
       };
 
@@ -122,6 +124,7 @@ export class OrderService {
         message: 'Order created successfully'
       };
     } catch (error) {
+      console.error('Order creation failed:', error);
       return {
         success: false,
         data: null as any,

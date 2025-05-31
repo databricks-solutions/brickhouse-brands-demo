@@ -134,8 +134,8 @@ async def create_order(order_data: OrderCreate):
             cursor.execute(
                 """
                 INSERT INTO orders (order_number, from_store_id, to_store_id, product_id, 
-                                  quantity_cases, requested_by, notes)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                  quantity_cases, requested_by, approved_by, notes)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING order_id
             """,
                 (
@@ -145,6 +145,7 @@ async def create_order(order_data: OrderCreate):
                     order_data.product_id,
                     order_data.quantity_cases,
                     order_data.requested_by,
+                    order_data.approved_by,
                     order_data.notes,
                 ),
             )

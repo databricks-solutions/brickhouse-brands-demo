@@ -84,7 +84,7 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
   const { regionOptions, stores, storeOptions, fetchRegionOptions, fetchStores, fetchStoreOptions, isLoading: isLoadingStores } = useStoreStore();
   const { inventory, fetchWarehouseInventory } = useInventoryStore();
   const { createOrder, isCreatingOrder, fetchOrderStatusSummary, refreshOrders } = useOrderStore();
-  const { currentUser, setCurrentUser } = useUserStore();
+  const { currentUser, setCurrentUser, currentRegionalManager } = useUserStore();
 
   // Fetch initial data
   useEffect(() => {
@@ -99,15 +99,15 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
   useEffect(() => {
     if (isOpen && !currentUser) {
       setCurrentUser({
-        userId: 1,
+        user_id: 1,
         username: "store_manager",
         email: "manager@store.com",
-        firstName: "Store",
-        lastName: "Manager",
+        first_name: "Store",
+        last_name: "Manager",
         role: "store_manager",
-        storeId: 1,
+        store_id: 1,
         region: "Northeast",
-        createdAt: new Date()
+        created_at: new Date()
       });
     }
   }, [isOpen, currentUser, setCurrentUser]);
@@ -263,14 +263,28 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
     try {
       // For now, create orders one by one (could be optimized to batch)
       for (const item of orderItems) {
-        await createOrder({
+        console.log('Creating order for item:', item);
+        console.log('Current user:', currentUser);
+        console.log('Current regional manager:', currentRegionalManager);
+
+        // Ensure all numeric values are actually numbers
+        const orderPayload = {
           fromStoreId: 1, // Always order from main warehouse (store ID 1)
           toStoreId: parseInt(selectedToStore),
-          productId: item.product.product_id,
-          quantityCases: item.quantity,
-          requestedBy: currentUser.userId,
+          productId: Number(item.product.product_id),
+          quantityCases: Number(item.quantity),
+          requestedBy: Number(currentUser.user_id),
+          approvedBy: currentRegionalManager?.user_id ? Number(currentRegionalManager.user_id) : 26,
           notes: `Order placed via dashboard for ${item.product.product_name} - Delivery to ${storeOptions.find(s => s.value === parseInt(selectedToStore))?.label || 'selected store'}`
-        });
+        };
+
+        console.log('Order payload being sent:', orderPayload);
+
+        const result = await createOrder(orderPayload);
+
+        if (!result) {
+          throw new Error('Order creation returned false');
+        }
       }
 
       const selectedStoreName = storeOptions.find(s => s.value === parseInt(selectedToStore))?.label || 'selected store';
@@ -290,9 +304,19 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
       setSelectedToStore("");
       onClose();
     } catch (error) {
+      console.error('Order submission error:', error);
+      let errorMessage = "Please try again later.";
+
+      // Extract meaningful error message
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+
       toast({
         title: "Order submission failed",
-        description: "Please try again later.",
+        description: errorMessage,
         variant: "destructive"
       });
     }

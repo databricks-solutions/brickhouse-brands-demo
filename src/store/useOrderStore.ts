@@ -62,6 +62,7 @@ interface OrderState {
     quantityCases: number;
     requestedBy: number;
     notes?: string;
+    approvedBy?: number;
   }) => Promise<boolean>;
   updateOrderStatus: (orderId: number, status: string, userId?: number) => Promise<boolean>;
   updateOrder: (orderId: number, updateData: { quantity_cases?: number; notes?: string }) => Promise<boolean>;
@@ -295,7 +296,10 @@ export const useOrderStore = create<OrderState>()(
         set({ isCreatingOrder: true, error: null });
 
         try {
-          const result = await OrderService.createOrder(orderData);
+          const result = await OrderService.createOrder({
+            ...orderData,
+            approvedBy: orderData.approvedBy || 26 // Use provided approvedBy or default to 26
+          });
 
           if (result.success) {
             set({ isCreatingOrder: false });

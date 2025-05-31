@@ -282,4 +282,14 @@ export class UserService {
       throw new Error(handleApiError(error as AxiosError));
     }
   }
+
+  // Get the default regional manager (user_id = 26)
+  static async getDefaultRegionalManager(): Promise<User | null> {
+    try {
+      // For demonstration purposes, we're using user_id = 26 as the default regional manager
+      return await this.getUserById(26);
+    } catch (error) {
+      throw new Error(handleApiError(error as AxiosError));
+    }
+  }
 } 
