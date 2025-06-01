@@ -1,6 +1,6 @@
 # Database Setup Guide
 
-This guide will help you set up a PostgreSQL database for the Store Flow Analytics application with FastAPI backend integration.
+This guide will help you set up a PostgreSQL database for the Brickstore Brands application with FastAPI backend integration.
 
 ## Architecture Overview
 

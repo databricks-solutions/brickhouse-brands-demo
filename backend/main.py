@@ -11,8 +11,8 @@ load_dotenv()
 
 # Create FastAPI app
 app = FastAPI(
-    title="Store Flow Analytics API",
-    description="Backend API for Store Flow Analytics Dashboard",
+    title="Brickstore Brands API",
+    description="Backend API for Brickstore Brands Portal",
     version="1.0.0",
     redirect_slashes=False,  # Disable automatic slash redirects
 )
@@ -63,9 +63,10 @@ app.include_router(users.router, prefix=f"{API_PREFIX}/users", tags=["users"])
 app.include_router(products.router, prefix=f"{API_PREFIX}/products", tags=["products"])
 
 
-@app.get("/")
-async def root():
-    return {"message": "Store Flow Analytics API is running"}
+@app.get("/", response_model=dict)
+async def read_root():
+    """Health check endpoint"""
+    return {"message": "Brickstore Brands API is running"}
 
 
 @app.get("/health")

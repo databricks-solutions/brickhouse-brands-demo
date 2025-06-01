@@ -1,4 +1,4 @@
--- Sample data for Store Flow Analytics Database
+-- Sample data for Brickstore Brands Database
 -- This file contains sample data to populate the database for testing
 
 -- Insert sample stores

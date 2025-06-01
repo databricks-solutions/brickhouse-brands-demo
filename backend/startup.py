@@ -9,7 +9,7 @@ import sys
 def startup():
     """Initialize database connections and start the server"""
     try:
-        print("🚀 Starting Store Flow Analytics API...")
+        print("🚀 Starting Brickstore Brands API...")
         print("📁 Initializing database connection pool...")
 
         # Initialize database connection pool

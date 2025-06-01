@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Store Flow Analytics - Development Startup Script
+# Brickstore Brands - Development Startup Script
 
-echo "🚀 Starting Store Flow Analytics Development Environment"
+echo "🚀 Starting Brickstore Brands Development Environment"
 echo "=================================================="
 
 # Function to check if command exists

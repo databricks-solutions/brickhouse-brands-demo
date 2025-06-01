@@ -1,1 +1,1 @@
-# FastAPI Store Flow Analytics Backend
+# FastAPI Brickstore Brands Backend

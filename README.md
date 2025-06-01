@@ -1,4 +1,4 @@
-# Store Flow Analytics
+# Brickstore Brands
 
 A comprehensive inventory management dashboard built with React and FastAPI, featuring real-time analytics and PostgreSQL database integration.
 
@@ -101,7 +101,7 @@ The API will be available at `http://localhost:8000`
 ### Project Structure
 
 ```
-store-flow-analytics/
+brickstore-brands/
 ├── src/                    # Frontend React application
 │   ├── components/         # Reusable UI components
 │   ├── pages/              # Main application pages
