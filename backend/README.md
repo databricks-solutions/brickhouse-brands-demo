@@ -9,6 +9,15 @@ This is the backend API for the Brickstore Brands dashboard, built with FastAPI 
 - **Pydantic** - Data validation and serialization
 - **CORS** - Configured for frontend integration
 - **Modular Architecture** - Clean separation of concerns
+- **Databricks Apps Support** - Enhanced for deployment on Databricks Apps platform
+- **Dual Authentication** - Service Principal (Databricks) + CLI (Local development)
+- **User Context Handling** - Support for Databricks user authorization
+
+## Deployment Options
+
+### 💻 Local Development
+
+For local development and testing, follow the setup instructions below.
 
 ## API Endpoints
 
@@ -167,8 +176,32 @@ with get_db_cursor() as cursor:
 | `DB_NAME` | Database name | `store_flow_analytics` |
 | `DB_USER` | Database username | - |
 | `DB_PASSWORD` | Database password | - |
-| `DEBUG` | Enable debug mode | `True` |
+| `DEBUG` | Enable debug mode (also sets LOG_LEVEL=DEBUG) | `True` |
+| `LOG_LEVEL` | Logging level (DEBUG, INFO, WARNING, ERROR) | `INFO` |
 | `API_PREFIX` | API route prefix | `/api` |
+| `DATABRICKS_HOST` | Databricks workspace URL | - |
+| `DATABRICKS_TOKEN` | Personal access token for local dev | - |
+
+## Logging
+
+The application uses centralized logging with ISO 8601 time format:
+
+```
+2025-06-01T22:14:19+0100 [INFO] app.config: 🔐 Databricks authentication successful
+```
+
+### Log Levels
+- **DEBUG**: Detailed debugging information
+- **INFO**: General operational information  
+- **WARNING**: Warning messages for potential issues
+- **ERROR**: Error messages for failures
+
+### Configuration
+Set logging level in your `.env` file:
+```env
+LOG_LEVEL=INFO  # Options: DEBUG, INFO, WARNING, ERROR
+DEBUG=true      # Alternative way to enable DEBUG level
+```
 
 ## Error Handling
 
