@@ -21,21 +21,24 @@ import {
   Edit3,
   X,
   Save,
-  Ban
+  Ban,
+  Eye
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrderStore } from "@/store/useOrderStore";
 import { useUserStore } from "@/store/useUserStore";
+import { useProductStore } from "@/store/useProductStore";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
-import { Order } from "@/api/types";
+import { Order, Product } from "@/api/types";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import {
   getMaxOrderQuantity,
   getOrderExpiryDays,
-  formatDate
+  formatDate,
+  formatCurrency
 } from "@/lib/config";
 
-interface ModifyOrderModalProps {
+interface ViewOrderDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   order: Order | null;
@@ -80,7 +83,7 @@ const getDaysExpired = (orderDate: string | Date) => {
   return diffDays;
 };
 
-export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalProps) => {
+export const ViewOrderDetailsModal = ({ isOpen, onClose, order }: ViewOrderDetailsModalProps) => {
   const [quantity, setQuantity] = useState<number>(0);
   const [notes, setNotes] = useState<string>('');
   const [isEditing, setIsEditing] = useState(false);
@@ -90,7 +93,34 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
   const { toast } = useToast();
   const { isUpdatingOrder, updateOrder, cancelOrder, refreshOrders } = useOrderStore();
   const { currentRegionalManager, initializeCurrentRegionalManager, isLoadingRegionalManager } = useUserStore();
+  const { currentProduct, isLoadingCurrentProduct, fetchProductById, getProductFromCache } = useProductStore();
   const { isDarkMode } = useDarkModeStore();
+
+  // Fetch product details when order changes - check cache first for instant access
+  useEffect(() => {
+    if (isOpen && order?.product_id) {
+      console.log('Loading product details for product_id:', order.product_id);
+
+      // First check cache for instant access
+      const cachedProduct = getProductFromCache(order.product_id);
+      if (cachedProduct) {
+        console.log('✅ Product found in cache (instant access):', cachedProduct.product_name);
+        // fetchProductById will handle setting currentProduct from cache
+        fetchProductById(order.product_id);
+      } else {
+        console.log('⏳ Product not in cache, fetching from API');
+        fetchProductById(order.product_id);
+      }
+    }
+  }, [isOpen, order?.product_id, fetchProductById, getProductFromCache]);
+
+  // Debug log when currentProduct changes
+  useEffect(() => {
+    if (currentProduct) {
+      console.log('📦 Current product updated:', currentProduct.product_name, '- Price:', currentProduct.unit_price);
+    }
+    console.log('Is loading current product:', isLoadingCurrentProduct);
+  }, [currentProduct, isLoadingCurrentProduct]);
 
   // Initialize form values when order changes
   useEffect(() => {
@@ -110,7 +140,20 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
     }
   }, [isOpen, currentRegionalManager, initializeCurrentRegionalManager]);
 
+  // Determine if the order can be modified
   const canModify = order && (order.order_status === 'pending_review' || order.order_status === 'approved');
+  const isViewOnly = !canModify;
+
+  // Determine modal title based on mode
+  const getModalTitle = () => {
+    if (!order) return "Order Details";
+
+    if (isViewOnly) {
+      return `View Order ${order.order_number}`;
+    } else {
+      return `Modify Order ${order.order_number}`;
+    }
+  };
 
   const handleModifyOrder = async () => {
     if (!order || !canModify) return;
@@ -223,45 +266,58 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
           <DialogHeader>
             <DialogTitle className={`flex items-center gap-3 text-2xl font-bold ${isDarkMode ? 'text-white' : ''
               }`}>
-              <Edit3 className="h-6 w-6" />
-              Modify Order {order.order_number}
+              {isViewOnly ? <Eye className="h-6 w-6" /> : <Edit3 className="h-6 w-6" />}
+              {getModalTitle()}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-6">
             {/* Order Status Banner */}
-            <div className={`flex items-center justify-between p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'
+            <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'
               }`}>
-              <div className="flex items-center gap-3">
-                <Badge variant={getStatusBadgeVariant(order.order_status)} className="text-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Badge variant={getStatusBadgeVariant(order.order_status)} className="text-sm flex-shrink-0">
+                    {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > getOrderExpiryDays() && (
+                      <AlertTriangle className={`h-3 w-3 mr-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`} />
+                    )}
+                    {getStatusText(order.order_status)}
+                  </Badge>
                   {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > getOrderExpiryDays() && (
-                    <AlertTriangle className={`h-3 w-3 mr-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`} />
+                    <span className={`text-xs whitespace-nowrap flex-shrink-0 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
+                      {Math.max(0, Math.ceil(getDaysExpired(order.order_date) - getOrderExpiryDays()))} days overdue
+                    </span>
                   )}
-                  {getStatusText(order.order_status)}
-                </Badge>
-                {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > getOrderExpiryDays() && (
-                  <span className={`text-xs ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
-                    {Math.max(0, Math.ceil(getDaysExpired(order.order_date) - getOrderExpiryDays()))} days overdue
-                  </span>
-                )}
-                <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                  Version {order.version}
-                </span>
-              </div>
-              {!canModify && (
-                <Alert className={`inline-flex items-center py-2 px-3 ${isDarkMode
-                  ? 'border-orange-700 bg-orange-900/20'
-                  : 'border-orange-200 bg-orange-50'
-                  }`}>
-                  <AlertTriangle className={`h-4 w-4 ${isDarkMode ? 'text-orange-400' : 'text-orange-600'
-                    }`} />
-                  <AlertDescription className={`ml-2 text-sm ${isDarkMode ? 'text-orange-300' : 'text-orange-700'
+                  <span className={`text-sm whitespace-nowrap flex-shrink-0 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                     }`}>
-                    Only pending and approved orders can be modified
-                  </AlertDescription>
-                </Alert>
-              )}
+                    Version {order.version}
+                  </span>
+                  {isViewOnly && (
+                    <Alert className={`inline-flex items-center py-1 px-2 whitespace-nowrap flex-1 ml-2 ${isDarkMode
+                      ? 'border-blue-700 bg-blue-900/20'
+                      : 'border-blue-200 bg-blue-50'
+                      }`}>
+                      <AlertDescription className={`text-xs ${isDarkMode ? 'text-blue-300' : 'text-blue-700'
+                        }`}>
+                        This order is in view-only mode
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+                {!canModify && !isViewOnly && (
+                  <Alert className={`inline-flex items-center py-2 px-3 ${isDarkMode
+                    ? 'border-orange-700 bg-orange-900/20'
+                    : 'border-orange-200 bg-orange-50'
+                    }`}>
+                    <AlertTriangle className={`h-4 w-4 ${isDarkMode ? 'text-orange-400' : 'text-orange-600'
+                      }`} />
+                    <AlertDescription className={`ml-2 text-sm ${isDarkMode ? 'text-orange-300' : 'text-orange-700'
+                      }`}>
+                      Only pending and approved orders can be modified
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
             </div>
 
             {/* Order Information Grid */}
@@ -369,6 +425,38 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                       )}
                     </div>
                   </div>
+
+                  {/* Total Order Value - Full Width Row */}
+                  <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-600' : 'border-gray-200'
+                    }`}>
+                    <div className="flex items-center justify-between">
+                      <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>Total Order Value</div>
+                      <div className={`text-lg font-semibold ${isDarkMode ? 'text-green-400' : 'text-green-600'
+                        }`}>
+                        {isLoadingCurrentProduct ? (
+                          <div className="flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span className="text-sm">Loading...</span>
+                          </div>
+                        ) : currentProduct?.unit_price ? (
+                          formatCurrency(order.quantity_cases * currentProduct.unit_price)
+                        ) : (
+                          'Price not available'
+                        )}
+                      </div>
+                    </div>
+                    <div className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                      {isLoadingCurrentProduct ? (
+                        `${order.quantity_cases.toLocaleString()} cases`
+                      ) : currentProduct?.unit_price ? (
+                        `${order.quantity_cases.toLocaleString()} cases × ${formatCurrency(currentProduct.unit_price)} per case`
+                      ) : (
+                        `${order.quantity_cases.toLocaleString()} cases`
+                      )}
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -387,6 +475,19 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                       }`}>{order.product_name}</div>
                     <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>{order.brand} • {order.category}</div>
+                    <div className={`text-sm mt-1 font-medium ${isDarkMode ? 'text-blue-400' : 'text-blue-600'
+                      }`}>
+                      {isLoadingCurrentProduct ? (
+                        <div className="flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span className="text-xs">Loading price...</span>
+                        </div>
+                      ) : currentProduct?.unit_price ? (
+                        formatCurrency(currentProduct.unit_price) + ' per case'
+                      ) : (
+                        'Price not available'
+                      )}
+                    </div>
                   </div>
 
                   <div className={`border-t pt-4 ${isDarkMode ? 'border-gray-600' : ''
@@ -422,14 +523,14 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
               </Card>
             </div>
 
-            {/* Editable Fields */}
+            {/* Editable/View Fields */}
             <Card className={isDarkMode ? 'bg-gray-700 border-gray-600' : ''}>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span className={`flex items-center gap-2 text-lg ${isDarkMode ? 'text-white' : ''
                     }`}>
-                    <Edit3 className="h-6 w-6" />
-                    Order Modifications
+                    {isViewOnly ? <Eye className="h-6 w-6" /> : <Edit3 className="h-6 w-6" />}
+                    {isViewOnly ? 'Order Information' : 'Order Modifications'}
                   </span>
                   {canModify && !isEditing && (
                     <Button
@@ -454,7 +555,7 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                     Quantity (Cases)
                   </Label>
                   <div className="mt-1">
-                    {isEditing ? (
+                    {isEditing && canModify ? (
                       <Input
                         id="quantity"
                         type="number"
@@ -496,7 +597,7 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                     Order Notes
                   </Label>
                   <div className="mt-1">
-                    {isEditing ? (
+                    {isEditing && canModify ? (
                       <Textarea
                         id="notes"
                         value={notes}
@@ -519,7 +620,7 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                 </div>
 
                 {/* Action Buttons - Only show when editing */}
-                {isEditing && (
+                {isEditing && canModify && (
                   <div className={`flex items-center gap-3 pt-4 border-t ${isDarkMode ? 'border-gray-600' : ''
                     }`}>
                     <Button

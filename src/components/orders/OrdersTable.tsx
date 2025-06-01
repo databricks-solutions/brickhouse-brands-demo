@@ -2,12 +2,14 @@ import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/ui/UserAvatar";
-import { Loader2, ChevronLeft, ChevronRight, Package, Store, User, Calendar, Edit3, AlertTriangle } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Package, Store, User, Calendar, Edit3, AlertTriangle, Eye } from "lucide-react";
 import { useOrderStore } from "@/store/useOrderStore";
 import { useInventoryStore } from "@/store/useInventoryStore";
+import { useProductStore } from "@/store/useProductStore";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
 import { Order } from "@/api/types";
-import { ModifyOrderModal } from "./ModifyOrderModal";
+import { ViewOrderDetailsModal } from "./ViewOrderDetailsModal";
+import { getOrderExpiryDays } from "@/lib/config";
 
 const getStatusBadgeVariant = (status: string) => {
   switch (status) {
@@ -76,6 +78,9 @@ export const OrdersTable = () => {
     filters // All filters now centralized in order store
   } = useOrderStore();
 
+  // Get product store for prefetching
+  const { prefetchProductsByIds, isPrefetching } = useProductStore();
+
   // Get dark mode state
   const { isDarkMode } = useDarkModeStore();
 
@@ -88,12 +93,17 @@ export const OrdersTable = () => {
     return order.order_status === 'pending_review' || order.order_status === 'approved';
   };
 
-  const handleModifyOrder = (order: Order) => {
+  // Helper function to check if order is view-only
+  const isViewOnlyOrder = (order: Order) => {
+    return order.order_status === 'fulfilled' || order.order_status === 'cancelled';
+  };
+
+  const handleOrderAction = (order: Order) => {
     setSelectedOrderForModify(order);
     setIsModifyModalOpen(true);
   };
 
-  const handleCloseModifyModal = () => {
+  const handleCloseModal = () => {
     setIsModifyModalOpen(false);
     setSelectedOrderForModify(null);
   };
@@ -107,6 +117,42 @@ export const OrdersTable = () => {
   useEffect(() => {
     fetchOrders(filters, 1, pageSize);
   }, [fetchOrders, filters, pageSize]);
+
+  // Effect to prefetch product data when orders change
+  useEffect(() => {
+    if (orders.length > 0) {
+      // Extract unique product IDs from current orders
+      const productIds = [...new Set(orders.map(order => order.product_id))];
+      console.log(`🚀 Prefetching product data for ${orders.length} orders (${productIds.length} unique products):`, productIds);
+
+      // Performance monitoring
+      const startTime = performance.now();
+      const memoryBefore = (performance as any).memory ? (performance as any).memory.usedJSHeapSize : 0;
+
+      // Prefetch product data for instant modal access
+      prefetchProductsByIds(productIds).then(() => {
+        const endTime = performance.now();
+        const memoryAfter = (performance as any).memory ? (performance as any).memory.usedJSHeapSize : 0;
+        const duration = Math.round(endTime - startTime);
+        const memoryUsed = memoryAfter - memoryBefore;
+
+        console.log(`⚡ Prefetching completed in ${duration}ms`);
+        if (memoryUsed > 0) {
+          console.log(`📊 Memory used: ${(memoryUsed / 1024 / 1024).toFixed(2)}MB`);
+        }
+        console.log(`🎯 Average time per product: ${(duration / productIds.length).toFixed(1)}ms`);
+
+        // Calculate estimated time savings vs sequential loading
+        const estimatedSequentialTime = productIds.length * 200; // Assume 200ms per individual request
+        const timeSaved = estimatedSequentialTime - duration;
+        if (timeSaved > 0) {
+          console.log(`💨 Time saved vs sequential: ${timeSaved}ms (${Math.round((timeSaved / estimatedSequentialTime) * 100)}% faster)`);
+        }
+      }).catch(error => {
+        console.error('❌ Prefetching failed:', error);
+      });
+    }
+  }, [orders, prefetchProductsByIds]);
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
@@ -123,15 +169,15 @@ export const OrdersTable = () => {
         <div className="flex flex-col items-end">
           <div className="flex items-center gap-1">
             <Badge variant={getStatusBadgeVariant(order.order_status)}>
-              {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > 2 && (
+              {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > getOrderExpiryDays() && (
                 <AlertTriangle className={`h-3 w-3 mr-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`} />
               )}
               {getStatusText(order.order_status)}
             </Badge>
           </div>
-          {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > 2 && (
+          {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > getOrderExpiryDays() && (
             <div className={`text-xs mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
-              {Math.max(0, Math.ceil(getDaysExpired(order.order_date) - 2))} days overdue
+              {Math.max(0, Math.ceil(getDaysExpired(order.order_date) - getOrderExpiryDays()))} days overdue
             </div>
           )}
         </div>
@@ -281,15 +327,15 @@ export const OrdersTable = () => {
               <div className="flex flex-col items-center justify-center">
                 <div className="flex items-center gap-1">
                   <Badge variant={getStatusBadgeVariant(order.order_status)} className="min-w-[100px] justify-center">
-                    {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > 2 && (
+                    {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > getOrderExpiryDays() && (
                       <AlertTriangle className={`h-3 w-3 mr-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`} />
                     )}
                     {getStatusText(order.order_status)}
                   </Badge>
                 </div>
-                {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > 2 && (
+                {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > getOrderExpiryDays() && (
                   <div className={`text-xs mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
-                    {Math.max(0, Math.ceil(getDaysExpired(order.order_date) - 2))} days overdue
+                    {Math.max(0, Math.ceil(getDaysExpired(order.order_date) - getOrderExpiryDays()))} days overdue
                   </div>
                 )}
               </div>
@@ -300,7 +346,7 @@ export const OrdersTable = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleModifyOrder(order)}
+                    onClick={() => handleOrderAction(order)}
                     className={`${isDarkMode
                       ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white'
                       : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
@@ -308,6 +354,19 @@ export const OrdersTable = () => {
                   >
                     <Edit3 className="h-4 w-4 mr-1" />
                     Modify
+                  </Button>
+                ) : isViewOnlyOrder(order) ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleOrderAction(order)}
+                    className={`${isDarkMode
+                      ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white'
+                      : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
+                      }`}
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    View
                   </Button>
                 ) : (
                   <span className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>-</span>
@@ -343,6 +402,13 @@ export const OrdersTable = () => {
       {isLoading && (
         <div className="h-1 w-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
           <div className="h-full bg-blue-500 animate-pulse" style={{ width: '30%' }}></div>
+        </div>
+      )}
+
+      {/* Add prefetching indicator */}
+      {isPrefetching && !isLoading && (
+        <div className="h-1 w-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+          <div className="h-full bg-green-500 animate-pulse" style={{ width: '60%' }}></div>
         </div>
       )}
 
@@ -459,10 +525,10 @@ export const OrdersTable = () => {
         </div>
       )}
 
-      {/* Modify Order Modal */}
-      <ModifyOrderModal
+      {/* Order Details Modal */}
+      <ViewOrderDetailsModal
         isOpen={isModifyModalOpen}
-        onClose={handleCloseModifyModal}
+        onClose={handleCloseModal}
         order={selectedOrderForModify}
       />
     </div>

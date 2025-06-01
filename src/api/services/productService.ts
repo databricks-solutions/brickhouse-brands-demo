@@ -5,6 +5,7 @@ import {
   PaginatedResponse,
 } from '../types';
 import { AxiosError } from 'axios';
+import { getApiBatchSize, getPrefetchBatchSize } from '../../lib/config';
 
 export class ProductService {
   // Get all products with optional filtering
@@ -44,6 +45,68 @@ export class ProductService {
       }
       throw new Error(handleApiError(error as AxiosError));
     }
+  }
+
+  // Get multiple products by IDs in a single request (more efficient than individual calls)
+  static async getProductsByIds(productIds: number[]): Promise<Product[]> {
+    try {
+      if (productIds.length === 0) return [];
+
+      // Use query params to send multiple IDs
+      const idsParam = productIds.join(',');
+      console.log(`📡 Making bulk API request: /products/bulk?ids=${idsParam}`);
+      const response = await apiClient.get(`/products/bulk?ids=${idsParam}`);
+      console.log(`✅ Bulk API response received:`, response.data.length, 'products');
+      return response.data;
+    } catch (error) {
+      // Check if it's a 404 (endpoint doesn't exist) or other error
+      const axiosError = error as any;
+      if (axiosError.response?.status === 404) {
+        console.warn('🔄 Bulk products endpoint not found (404), falling back to parallel individual calls');
+      } else {
+        console.warn('⚠️ Bulk products endpoint failed:', axiosError.response?.status, 'falling back to parallel individual calls');
+      }
+      return await this.getProductsByIdsParallel(productIds);
+    }
+  }
+
+  // Fallback method for parallel individual calls with optimized batching
+  static async getProductsByIdsParallel(productIds: number[]): Promise<Product[]> {
+    if (productIds.length === 0) return [];
+
+    const BATCH_SIZE = getApiBatchSize(); // Use the configurable batch size
+    const results: Product[] = [];
+
+    console.log(`🔄 Using parallel fallback: ${productIds.length} products in batches of ${BATCH_SIZE}`);
+    const startTime = performance.now();
+
+    // Process in batches for better performance
+    for (let i = 0; i < productIds.length; i += BATCH_SIZE) {
+      const batch = productIds.slice(i, i + BATCH_SIZE);
+      console.log(`📦 Processing batch ${Math.floor(i / BATCH_SIZE) + 1}: ${batch.length} products`);
+
+      const batchPromises = batch.map(async (productId) => {
+        try {
+          return await this.getProductById(productId);
+        } catch (error) {
+          console.warn(`Failed to fetch product ${productId}:`, error);
+          return null;
+        }
+      });
+
+      const batchResults = await Promise.allSettled(batchPromises);
+
+      batchResults.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value) {
+          results.push(result.value);
+        }
+      });
+    }
+
+    const endTime = performance.now();
+    console.log(`✅ Parallel fallback completed: ${results.length}/${productIds.length} products in ${Math.round(endTime - startTime)}ms`);
+
+    return results;
   }
 
   // Create new product

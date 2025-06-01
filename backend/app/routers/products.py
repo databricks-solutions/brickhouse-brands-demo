@@ -6,6 +6,53 @@ from app.database.connection import get_db_cursor
 router = APIRouter()
 
 
+@router.get("/bulk", response_model=List[Product])
+async def get_products_bulk(
+    ids: str = Query(..., description="Comma-separated list of product IDs")
+):
+    """Get multiple products by IDs in a single request"""
+    try:
+        # Parse the comma-separated IDs
+        try:
+            product_ids = [int(id.strip()) for id in ids.split(",") if id.strip()]
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid product ID format. Expected comma-separated integers.",
+            )
+
+        if not product_ids:
+            return []
+
+        if len(product_ids) > 100:  # Reasonable limit to prevent abuse
+            raise HTTPException(
+                status_code=400, detail="Maximum 100 products can be fetched at once"
+            )
+
+        with get_db_cursor() as cursor:
+            # Create placeholders for the IN clause
+            placeholders = ",".join(["%s"] * len(product_ids))
+            query = f"""
+                SELECT product_id, product_name, brand, category, package_size,
+                       unit_price, created_at
+                FROM products 
+                WHERE product_id IN ({placeholders})
+                ORDER BY product_name
+            """
+
+            cursor.execute(query, product_ids)
+            products = cursor.fetchall()
+
+            return [Product(**product) for product in products]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch bulk products: {str(e)}"
+        )
+
+
 @router.get("", response_model=List[Product])
 async def get_products(
     category: Optional[str] = Query(None),

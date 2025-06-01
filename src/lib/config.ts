@@ -18,6 +18,9 @@ export const APP_CONFIG = {
     debounceDelay: 500, // ms for search input debouncing
     defaultPageSize: 50,
     maxRetries: 3,
+    batchSize: 10, // Number of concurrent API requests in parallel
+    prefetchBatchSize: 20, // Max products to fetch in a single bulk request
+    requestTimeout: 10000, // ms for API request timeout
   },
 
   // UI Configuration
@@ -57,6 +60,9 @@ export const getLowStockThreshold = () => APP_CONFIG.orders.lowStockThreshold;
 export const getCriticalStockThreshold = () => APP_CONFIG.orders.criticalStockThreshold;
 export const getOrderExpiryDays = () => APP_CONFIG.orders.orderExpiryDays;
 export const getApiDebounceDelay = () => APP_CONFIG.api.debounceDelay;
+export const getApiBatchSize = () => APP_CONFIG.api.batchSize;
+export const getPrefetchBatchSize = () => APP_CONFIG.api.prefetchBatchSize;
+export const getApiTimeout = () => APP_CONFIG.api.requestTimeout;
 export const getWarehouseStoreId = () => APP_CONFIG.business.warehouseStoreId;
 export const getDefaultRegionalManagerId = () => APP_CONFIG.business.defaultRegionalManagerId;
 
