@@ -29,6 +29,11 @@ import { useUserStore } from "@/store/useUserStore";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
 import { Order } from "@/api/types";
 import { UserAvatar } from "@/components/ui/UserAvatar";
+import {
+  getMaxOrderQuantity,
+  getOrderExpiryDays,
+  formatDate
+} from "@/lib/config";
 
 interface ModifyOrderModalProps {
   isOpen: boolean;
@@ -64,26 +69,6 @@ const getStatusText = (status: string) => {
     default:
       return status;
   }
-};
-
-const formatDate = (date: string | Date) => {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return dateObj.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
-const formatCurrency = (amount: number): string => {
-  return amount.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
 };
 
 // Helper function to calculate days since order creation (for display only)
@@ -140,10 +125,11 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
       return;
     }
 
-    if (quantity > 10000) {
+    const maxQuantity = getMaxOrderQuantity();
+    if (quantity > maxQuantity) {
       toast({
         title: "Invalid quantity",
-        description: "Maximum quantity is 10,000 cases.",
+        description: `Maximum quantity is ${maxQuantity.toLocaleString()} cases.`,
         variant: "destructive"
       });
       return;
@@ -248,14 +234,14 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
               }`}>
               <div className="flex items-center gap-3">
                 <Badge variant={getStatusBadgeVariant(order.order_status)} className="text-sm">
-                  {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > 2 && (
+                  {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > getOrderExpiryDays() && (
                     <AlertTriangle className={`h-3 w-3 mr-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`} />
                   )}
                   {getStatusText(order.order_status)}
                 </Badge>
-                {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > 2 && (
+                {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > getOrderExpiryDays() && (
                   <span className={`text-xs ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
-                    {Math.max(0, Math.ceil(getDaysExpired(order.order_date) - 2))} days overdue
+                    {Math.max(0, Math.ceil(getDaysExpired(order.order_date) - getOrderExpiryDays()))} days overdue
                   </span>
                 )}
                 <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
@@ -473,9 +459,19 @@ export const ModifyOrderModal = ({ isOpen, onClose, order }: ModifyOrderModalPro
                         id="quantity"
                         type="number"
                         min="1"
-                        max="10000"
-                        value={quantity}
-                        onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
+                        max={getMaxOrderQuantity()}
+                        value={quantity === 0 ? '' : quantity}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '') {
+                            setQuantity(0);
+                          } else {
+                            const numValue = parseInt(value);
+                            if (!isNaN(numValue) && numValue >= 0) {
+                              setQuantity(numValue);
+                            }
+                          }
+                        }}
                         className={`w-full ${isDarkMode ? 'bg-gray-600 border-gray-500 text-white' : ''
                           }`}
                         onKeyDown={(e) => {

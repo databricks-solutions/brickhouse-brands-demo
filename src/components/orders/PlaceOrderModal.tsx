@@ -15,6 +15,17 @@ import { useOrderStore } from "@/store/useOrderStore";
 import { useUserStore } from "@/store/useUserStore";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
 import { Product as ApiProduct, OrderCreate } from "@/api/types";
+import {
+  getMaxOrderQuantity,
+  getMaxAddQuantity,
+  getLowStockThreshold,
+  getCriticalStockThreshold,
+  getApiDebounceDelay,
+  getWarehouseStoreId,
+  getDefaultRegionalManagerId,
+  formatCurrency,
+  formatNumber
+} from "@/lib/config";
 
 interface PlaceOrderModalProps {
   isOpen: boolean;
@@ -53,20 +64,6 @@ const useDebounce = (value: string, delay: number) => {
   return debouncedValue;
 };
 
-// Helper functions for formatting
-const formatNumber = (num: number): string => {
-  return num.toLocaleString('en-US');
-};
-
-const formatCurrency = (amount: number): string => {
-  return amount.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-};
-
 export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
   const [searchInput, setSearchInput] = useState("");
   const [selectedToStore, setSelectedToStore] = useState("");
@@ -77,7 +74,7 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
   const { isDarkMode } = useDarkModeStore();
 
   // Debounce search input to avoid API exhaustion
-  const debouncedSearchTerm = useDebounce(searchInput, 500);
+  const debouncedSearchTerm = useDebounce(searchInput, getApiDebounceDelay());
 
   // Get data from stores
   const { products, fetchProducts, isLoading: isLoadingProducts, error: productError } = useProductStore();
@@ -162,12 +159,13 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
     const currentQuantity = existingItem ? existingItem.quantity : 0;
     const newTotalQuantity = currentQuantity + quantityToAdd;
 
-    // Check 10,000 unit limit per product
-    if (newTotalQuantity > 10000) {
-      const maxCanAdd = 10000 - currentQuantity;
+    // Check maximum unit limit per product
+    const maxQuantity = getMaxOrderQuantity();
+    if (newTotalQuantity > maxQuantity) {
+      const maxCanAdd = maxQuantity - currentQuantity;
       toast({
         title: "Quantity limit exceeded",
-        description: `Maximum 10,000 units per product. You already have ${currentQuantity} in cart, can add ${maxCanAdd} more.`,
+        description: `Maximum ${maxQuantity.toLocaleString()} units per product. You already have ${currentQuantity} in cart, can add ${maxCanAdd} more.`,
         variant: "destructive"
       });
       return;
@@ -201,10 +199,11 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
       return;
     }
 
-    if (newQuantity > 10000) {
+    const maxQuantity = getMaxOrderQuantity();
+    if (newQuantity > maxQuantity) {
       toast({
         title: "Quantity limit exceeded",
-        description: "Maximum 10,000 units per product.",
+        description: `Maximum ${maxQuantity.toLocaleString()} units per product.`,
         variant: "destructive"
       });
       return;
@@ -269,12 +268,12 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
 
         // Ensure all numeric values are actually numbers
         const orderPayload = {
-          fromStoreId: 1, // Always order from main warehouse (store ID 1)
+          fromStoreId: getWarehouseStoreId(), // Always order from main warehouse
           toStoreId: parseInt(selectedToStore),
           productId: Number(item.product.product_id),
           quantityCases: Number(item.quantity),
           requestedBy: Number(currentUser.user_id),
-          approvedBy: currentRegionalManager?.user_id ? Number(currentRegionalManager.user_id) : 26,
+          approvedBy: currentRegionalManager?.user_id ? Number(currentRegionalManager.user_id) : getDefaultRegionalManagerId(),
           notes: `Order placed via dashboard for ${item.product.product_name} - Delivery to ${storeOptions.find(s => s.value === parseInt(selectedToStore))?.label || 'selected store'}`
         };
 
@@ -324,8 +323,8 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
 
   const getStockLevel = (availableStock: number) => {
     if (availableStock <= 0) return { level: "Out of Stock", color: "bg-red-500" };
-    if (availableStock < 1000) return { level: "Critical", color: "bg-red-500" };
-    if (availableStock < 2500) return { level: "Low", color: "bg-yellow-500" };
+    if (availableStock < getCriticalStockThreshold()) return { level: "Critical", color: "bg-red-500" };
+    if (availableStock < getLowStockThreshold()) return { level: "Low", color: "bg-yellow-500" };
     return { level: "Good", color: "bg-green-500" };
   };
 
@@ -430,7 +429,7 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
                                 <Input
                                   type="number"
                                   min="1"
-                                  max="10000"
+                                  max={getMaxAddQuantity()}
                                   defaultValue="1"
                                   className={`w-20 h-8 text-center ${isDarkMode ? 'bg-gray-600 border-gray-500 text-white' : ''
                                     }`}
@@ -460,13 +459,14 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
                                       return;
                                     }
 
-                                    if (inputValue > 10000) {
+                                    const maxAddQuantity = getMaxAddQuantity();
+                                    if (inputValue > maxAddQuantity) {
                                       toast({
                                         title: "Invalid quantity",
-                                        description: "Maximum quantity per add is 10,000 units.",
+                                        description: `Maximum quantity per add is ${maxAddQuantity.toLocaleString()} units.`,
                                         variant: "destructive"
                                       });
-                                      quantityInput.value = "10000";
+                                      quantityInput.value = maxAddQuantity.toString();
                                       return;
                                     }
 
