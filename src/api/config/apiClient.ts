@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
 
 // API configuration
 export const apiConfig = {
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://0.0.0.0:8000/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || `${window.location.origin}/api`,
   timeout: 30000, // 30 seconds
   headers: {
     'Content-Type': 'application/json',

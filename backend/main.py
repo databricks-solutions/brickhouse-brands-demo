@@ -1,8 +1,11 @@
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 import os
 from typing import Optional, Dict, Any
+import pathlib
 
 from app.routers import stores, inventory, orders, users, products
 from app.database.connection import init_connection_pool, close_connection_pool
@@ -18,6 +21,9 @@ setup_logging()
 
 # Setup logger for this module
 log = get_logger(__name__)
+
+# Get the path to the static frontend files (local to backend)
+FRONTEND_STATIC_PATH = pathlib.Path(__file__).parent / "static"
 
 # Create FastAPI app
 app = FastAPI(
@@ -35,6 +41,45 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static files for the frontend (only if dist directory exists)
+if FRONTEND_STATIC_PATH.exists():
+    app.mount(
+        "/assets",
+        StaticFiles(directory=str(FRONTEND_STATIC_PATH / "assets")),
+        name="assets",
+    )
+    log.info(f"📁 Static assets mounted from: {FRONTEND_STATIC_PATH / 'assets'}")
+else:
+    log.warning(f"⚠️ Frontend dist directory not found at: {FRONTEND_STATIC_PATH}")
+
+
+# Route to serve static files from the root of dist directory (favicon, robots.txt, etc.)
+@app.get("/favicon.ico", response_class=FileResponse)
+async def favicon():
+    """Serve favicon"""
+    favicon_file = FRONTEND_STATIC_PATH / "favicon.ico"
+    if favicon_file.exists():
+        return FileResponse(str(favicon_file))
+    raise HTTPException(status_code=404, detail="Favicon not found")
+
+
+@app.get("/robots.txt", response_class=FileResponse)
+async def robots():
+    """Serve robots.txt"""
+    robots_file = FRONTEND_STATIC_PATH / "robots.txt"
+    if robots_file.exists():
+        return FileResponse(str(robots_file))
+    raise HTTPException(status_code=404, detail="Robots.txt not found")
+
+
+@app.get("/placeholder.svg", response_class=FileResponse)
+async def placeholder():
+    """Serve placeholder.svg"""
+    placeholder_file = FRONTEND_STATIC_PATH / "placeholder.svg"
+    if placeholder_file.exists():
+        return FileResponse(str(placeholder_file))
+    raise HTTPException(status_code=404, detail="Placeholder not found")
 
 
 # Dependency to get user context from request headers
@@ -118,27 +163,32 @@ app.include_router(
 )
 
 
-@app.get("/", response_model=dict)
+@app.get("/", response_class=FileResponse)
 async def read_root():
-    """Health check endpoint with environment information"""
-    env_type = (
-        "Databricks Apps" if app_config.is_databricks_app else "Local Development"
-    )
-    auth_status = bool(databricks_auth.get_service_principal_token())
+    """Serve the frontend application"""
+    index_file = FRONTEND_STATIC_PATH / "index.html"
+    if index_file.exists():
+        log.debug("🏠 Serving frontend application at root")
+        return FileResponse(str(index_file))
+    else:
+        log.warning("⚠️ Frontend index.html not found, falling back to API response")
+        # Fallback to API response if frontend not built
+        env_type = (
+            "Databricks Apps" if app_config.is_databricks_app else "Local Development"
+        )
+        auth_status = bool(databricks_auth.get_service_principal_token())
 
-    log.debug(
-        f"🏠 Root endpoint accessed - Environment: {env_type}, Auth: {auth_status}"
-    )
-
-    return {
-        "message": "Brickstore Brands API is running",
-        "environment": env_type,
-        "version": "1.0.0",
-        "databricks_authenticated": auth_status,
-    }
+        return {
+            "message": "Brickstore Brands API is running",
+            "environment": env_type,
+            "version": "1.0.0",
+            "databricks_authenticated": auth_status,
+            "frontend_status": "not_built",
+        }
 
 
-@app.get("/health")
+# API Health check endpoint (moved to /api/health to avoid conflicts)
+@app.get("/api/health")
 async def health_check():
     """Detailed health check for Databricks Apps"""
     env_type = (
@@ -168,7 +218,14 @@ async def health_check():
     return health_status
 
 
-@app.get("/user-info")
+# Keep the old /health endpoint for backward compatibility
+@app.get("/health")
+async def health_check_legacy():
+    """Legacy health check endpoint"""
+    return await health_check()
+
+
+@app.get("/api/user-info")
 async def get_user_info(
     request: Request, user_context: Optional[Dict[str, Any]] = Depends(get_user_context)
 ):
@@ -189,3 +246,27 @@ async def get_user_info(
     else:
         log.warning("👤 User info requested but no authenticated user found")
         return {"authenticated": False, "message": "No user context available"}
+
+
+# Catch-all route for SPA routing - this must be last
+@app.get("/{full_path:path}", response_class=FileResponse)
+async def serve_spa(full_path: str):
+    """
+    Serve the SPA for all non-API routes
+    This handles client-side routing by always returning index.html
+    """
+    # Don't interfere with API routes
+    if (
+        full_path.startswith("api/")
+        or full_path.startswith("docs")
+        or full_path.startswith("redoc")
+        or full_path.startswith("openapi.json")
+    ):
+        raise HTTPException(status_code=404, detail="API endpoint not found")
+
+    index_file = FRONTEND_STATIC_PATH / "index.html"
+    if index_file.exists():
+        log.debug(f"🔄 SPA routing - serving index.html for path: /{full_path}")
+        return FileResponse(str(index_file))
+    else:
+        raise HTTPException(status_code=404, detail="Frontend application not found")
