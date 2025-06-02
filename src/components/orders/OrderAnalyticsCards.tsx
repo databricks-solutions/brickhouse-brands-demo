@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, AlertTriangle, CheckCircle, Package, Loader2 } from "lucide-react";
 import { useOrderStore } from "@/store/useOrderStore";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
+import { useDateStore } from "@/store/useDateStore";
 
 type FilterType = 'pending_review' | 'expired_sla' | 'approved' | 'fulfilled' | null;
 
@@ -14,10 +15,59 @@ export const OrderAnalyticsCards = () => {
         isLoadingStatusSummary,
         error,
         setFilters,
-        filters
+        filters,
+        fetchOrderStatusSummary
     } = useOrderStore();
     const { isDarkMode } = useDarkModeStore();
+    const { isDateConfigured, configuredDate, resetCounter } = useDateStore();
     const [activeFilter, setActiveFilter] = useState<FilterType>(null);
+
+    // Track previous date configuration to detect changes
+    const prevDateConfig = useRef({ isDateConfigured, configuredDate, resetCounter });
+
+    // Auto-refresh when date configuration changes
+    useEffect(() => {
+        const currentDateConfig = { isDateConfigured, configuredDate, resetCounter };
+        const prev = prevDateConfig.current;
+
+        // Check if date configuration has changed
+        const dateConfigChanged =
+            prev.isDateConfigured !== currentDateConfig.isDateConfigured ||
+            (prev.configuredDate && currentDateConfig.configuredDate &&
+                prev.configuredDate.getTime() !== currentDateConfig.configuredDate?.getTime()) ||
+            (!prev.configuredDate && currentDateConfig.configuredDate) ||
+            (prev.configuredDate && !currentDateConfig.configuredDate) ||
+            prev.resetCounter !== currentDateConfig.resetCounter; // Add reset counter check
+
+        if (dateConfigChanged) {
+            console.log('Date configuration changed, refreshing status summary...');
+
+            // If reset counter changed, this means date was reset to real-time
+            // OrderAnalyticsCards should refresh FIRST before OrdersTable
+            if (prev.resetCounter !== currentDateConfig.resetCounter) {
+                console.log('Date was reset to real-time, refreshing analytics first...');
+                // Shorter delay to ensure analytics load first
+                setTimeout(() => {
+                    fetchOrderStatusSummary(filters.region, filters.category);
+                }, 50);
+            } else {
+                // Normal date change, refresh immediately
+                fetchOrderStatusSummary(filters.region, filters.category);
+            }
+        }
+
+        // Update the ref for next comparison
+        prevDateConfig.current = currentDateConfig;
+    }, [isDateConfigured, configuredDate, resetCounter, fetchOrderStatusSummary, filters.region, filters.category]);
+
+    // Initial loading when component mounts
+    useEffect(() => {
+        // Only load if we don't have status summary data and aren't currently loading
+        if (!statusSummary && !isLoadingStatusSummary && !isBatchLoading) {
+            console.log('OrderAnalyticsCards: Initial load on mount');
+            fetchOrderStatusSummary(filters.region, filters.category);
+        }
+    }, [statusSummary, isLoadingStatusSummary, isBatchLoading, fetchOrderStatusSummary, filters.region, filters.category]);
 
     // Set initial active filter based on current order store state
     useEffect(() => {

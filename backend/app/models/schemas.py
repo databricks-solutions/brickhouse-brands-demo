@@ -1,6 +1,6 @@
 from pydantic import BaseModel
-from typing import Optional, List
-from datetime import datetime
+from typing import Optional, List, Union
+from datetime import datetime, date
 from enum import Enum
 
 
@@ -132,6 +132,7 @@ class OrderCreate(BaseModel):
     requested_by: int
     approved_by: Optional[int] = None
     notes: Optional[str]
+    order_date: Optional[Union[datetime, str]] = None
 
 
 # User related models

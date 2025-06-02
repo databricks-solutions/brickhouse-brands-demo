@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Order, OrderFilters, PaginatedResponse } from '../api/types';
 import { OrderService } from '../api/services/orderService';
+import { getLastDaysRange } from '@/utils/dateUtils';
 
 // Add debouncing functionality
 let filterDebounceTimer: NodeJS.Timeout | null = null;
@@ -86,6 +87,8 @@ interface OrderState {
   getPendingOrders: (region?: string) => Promise<void>;
   clearSelectedOrder: () => void;
   refreshOrders: () => Promise<void>;
+  // Add action to clear stale data when date is reset
+  clearStaleData: () => void;
 }
 
 const initialFilters: OrderFilters = {
@@ -138,11 +141,9 @@ export const useOrderStore = create<OrderState>()(
         // If this is a status or SLA filter change (analytics card click), add 30-day date filter
         // to match the analytics data
         if (statusOrSlaChanged && !regionChanged && !categoryChanged) {
-          const thirtyDaysAgo = new Date();
-          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-          newFilters.dateFrom = thirtyDaysAgo.toISOString().split('T')[0]; // YYYY-MM-DD format
-          newFilters.dateTo = new Date().toISOString().split('T')[0]; // Today
+          const dateRange = getLastDaysRange(30);
+          newFilters.dateFrom = dateRange.from;
+          newFilters.dateTo = dateRange.to;
         }
 
         // If region or category changed (not analytics card click), clear date filters
@@ -809,6 +810,32 @@ export const useOrderStore = create<OrderState>()(
             }
           });
         }
+      },
+
+      // Add action to clear stale data when date is reset
+      clearStaleData: () => {
+        set({
+          orders: [],
+          selectedOrder: null,
+          statusSummary: null,
+          currentPage: 1,
+          totalPages: 0,
+          totalItems: 0,
+          pageSize: 20,
+          filters: initialFilters,
+          isLoading: false,
+          isLoadingOrder: false,
+          isCreatingOrder: false,
+          isUpdatingOrder: false,
+          isLoadingStatusSummary: false,
+          isBatchLoading: false,
+          batchLoadingProgress: {
+            orders: false,
+            statusSummary: false,
+            productPrefetch: false,
+          },
+          error: null,
+        });
       }
     }),
     {

@@ -5,9 +5,11 @@ import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Loader2, ChevronLeft, ChevronRight, Package, Store, User, Calendar, Edit3, AlertTriangle, Eye } from "lucide-react";
 import { useOrderStore } from "@/store/useOrderStore";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
+import { useDateStore } from "@/store/useDateStore";
 import { Order } from "@/api/types";
 import { ViewOrderDetailsModal } from "./ViewOrderDetailsModal";
 import { getOrderExpiryDays } from "@/lib/config";
+import { useCurrentDate, getDaysSince } from "@/utils/dateUtils";
 
 const getStatusBadgeVariant = (status: string) => {
   switch (status) {
@@ -54,9 +56,8 @@ const isExpiredSlaFilterActive = (orderFilters: any) => {
 };
 
 // Helper function to calculate days since order creation (for display only)
-const getDaysExpired = (orderDate: string | Date) => {
+const getDaysExpired = (orderDate: string | Date, currentDate: Date) => {
   const orderDateTime = typeof orderDate === 'string' ? new Date(orderDate) : orderDate;
-  const currentDate = new Date();
   const diffTime = currentDate.getTime() - orderDateTime.getTime();
   const diffDays = diffTime / (1000 * 60 * 60 * 24); // Don't floor this
   return diffDays;
@@ -75,15 +76,59 @@ export const OrdersTable = () => {
     batchFetchOrderData,
     setPage,
     setPageSize,
-    filters
+    filters,
+    fetchOrders
   } = useOrderStore();
 
   // Get dark mode state
   const { isDarkMode } = useDarkModeStore();
 
+  // Get date store for listening to changes
+  const { isDateConfigured, configuredDate, resetCounter } = useDateStore();
+
   const [pageSize] = useState(10);
   const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
   const [selectedOrderForModify, setSelectedOrderForModify] = useState<Order | null>(null);
+
+  const currentDate = useCurrentDate();
+
+  // Track previous date configuration to detect changes
+  const prevDateConfig = useRef({ isDateConfigured, configuredDate, resetCounter });
+
+  // Auto-refresh when date configuration changes
+  useEffect(() => {
+    const currentDateConfig = { isDateConfigured, configuredDate, resetCounter };
+    const prev = prevDateConfig.current;
+
+    // Check if date configuration has changed
+    const dateConfigChanged =
+      prev.isDateConfigured !== currentDateConfig.isDateConfigured ||
+      (prev.configuredDate && currentDateConfig.configuredDate &&
+        prev.configuredDate.getTime() !== currentDateConfig.configuredDate?.getTime()) ||
+      (!prev.configuredDate && currentDateConfig.configuredDate) ||
+      (prev.configuredDate && !currentDateConfig.configuredDate) ||
+      prev.resetCounter !== currentDateConfig.resetCounter; // Add reset counter check
+
+    if (dateConfigChanged) {
+      console.log('Date configuration changed, refreshing orders...');
+
+      // If reset counter changed, this means date was reset to real-time
+      // Clear any stale cached data first
+      if (prev.resetCounter !== currentDateConfig.resetCounter) {
+        console.log('Date was reset to real-time, refreshing orders after analytics...');
+        // Longer delay to ensure OrdersTable loads AFTER OrderAnalyticsCards
+        setTimeout(() => {
+          batchFetchOrderData(filters, 1, pageSize, true);
+        }, 150);
+      } else {
+        // Normal date change, refresh immediately
+        batchFetchOrderData(filters, currentPage, pageSize, true);
+      }
+    }
+
+    // Update the ref for next comparison
+    prevDateConfig.current = currentDateConfig;
+  }, [isDateConfigured, configuredDate, resetCounter, batchFetchOrderData, filters, currentPage, pageSize]);
 
   // Helper function to check if order can be modified
   const canModifyOrder = (order: Order) => {
@@ -110,13 +155,15 @@ export const OrdersTable = () => {
     setPageSize(pageSize);
   }, [setPageSize, pageSize]);
 
-  // Trigger initial batch load when component mounts
+  // Trigger initial orders load when component mounts (analytics loads separately)
   useEffect(() => {
     // Only trigger if we don't have data and aren't currently loading
     if (!isBatchLoading && orders.length === 0) {
-      batchFetchOrderData(filters, 1, pageSize, true);
+      console.log('OrdersTable: Initial orders load on mount (analytics loads separately)');
+      // Use fetchOrders instead of batchFetchOrderData to avoid loading analytics
+      fetchOrders(filters, 1, pageSize);
     }
-  }, [batchFetchOrderData, filters, pageSize, isBatchLoading, orders.length]);
+  }, [fetchOrders, filters, pageSize, isBatchLoading, orders.length]);
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
@@ -179,15 +226,15 @@ export const OrdersTable = () => {
         <div className="flex flex-col items-end">
           <div className="flex items-center gap-1">
             <Badge variant={getStatusBadgeVariant(order.order_status)}>
-              {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > getOrderExpiryDays() && (
+              {order.order_status === 'pending_review' && getDaysExpired(order.order_date, currentDate) > getOrderExpiryDays() && (
                 <AlertTriangle className={`h-3 w-3 mr-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`} />
               )}
               {getStatusText(order.order_status)}
             </Badge>
           </div>
-          {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > getOrderExpiryDays() && (
+          {order.order_status === 'pending_review' && getDaysExpired(order.order_date, currentDate) > getOrderExpiryDays() && (
             <div className={`text-xs mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
-              {Math.max(0, Math.ceil(getDaysExpired(order.order_date) - getOrderExpiryDays()))} days overdue
+              {Math.max(0, Math.ceil(getDaysExpired(order.order_date, currentDate) - getOrderExpiryDays()))} days overdue
             </div>
           )}
         </div>
@@ -337,15 +384,15 @@ export const OrdersTable = () => {
               <div className="flex flex-col items-center justify-center">
                 <div className="flex items-center gap-1">
                   <Badge variant={getStatusBadgeVariant(order.order_status)} className="min-w-[100px] justify-center">
-                    {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > getOrderExpiryDays() && (
+                    {order.order_status === 'pending_review' && getDaysExpired(order.order_date, currentDate) > getOrderExpiryDays() && (
                       <AlertTriangle className={`h-3 w-3 mr-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`} />
                     )}
                     {getStatusText(order.order_status)}
                   </Badge>
                 </div>
-                {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > getOrderExpiryDays() && (
+                {order.order_status === 'pending_review' && getDaysExpired(order.order_date, currentDate) > getOrderExpiryDays() && (
                   <div className={`text-xs mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
-                    {Math.max(0, Math.ceil(getDaysExpired(order.order_date) - getOrderExpiryDays()))} days overdue
+                    {Math.max(0, Math.ceil(getDaysExpired(order.order_date, currentDate) - getOrderExpiryDays()))} days overdue
                   </div>
                 )}
               </div>

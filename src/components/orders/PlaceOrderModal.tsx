@@ -304,7 +304,7 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
       const selectedStoreName = storeOptions.find(s => s.value === parseInt(selectedToStore))?.label || 'selected store';
       toast({
         title: "Orders submitted successfully!",
-        description: `${orderItems.length} orders totaling ${formatCurrency(getTotalValue())} have been submitted for delivery to ${selectedStoreName}.`
+        description: `${orderItems.length} order${orderItems.length > 1 ? 's' : ''} submitted for delivery to ${selectedStoreName}.`
       });
 
       // Refresh the analytics cards to show updated counts

@@ -37,6 +37,7 @@ import {
   formatDate,
   formatCurrency
 } from "@/lib/config";
+import { useCurrentDate } from "@/utils/dateUtils";
 
 interface ViewOrderDetailsModalProps {
   isOpen: boolean;
@@ -75,9 +76,8 @@ const getStatusText = (status: string) => {
 };
 
 // Helper function to calculate days since order creation (for display only)
-const getDaysExpired = (orderDate: string | Date) => {
+const getDaysExpired = (orderDate: string | Date, currentDate: Date) => {
   const orderDateTime = typeof orderDate === 'string' ? new Date(orderDate) : orderDate;
-  const currentDate = new Date();
   const diffTime = currentDate.getTime() - orderDateTime.getTime();
   const diffDays = diffTime / (1000 * 60 * 60 * 24); // Don't floor this
   return diffDays;
@@ -95,6 +95,7 @@ export const ViewOrderDetailsModal = ({ isOpen, onClose, order }: ViewOrderDetai
   const { currentRegionalManager, initializeCurrentRegionalManager, isLoadingRegionalManager } = useUserStore();
   const { currentProduct, isLoadingCurrentProduct, fetchProductById, getProductFromCache } = useProductStore();
   const { isDarkMode } = useDarkModeStore();
+  const currentDate = useCurrentDate();
 
   // Fetch product details when order changes - check cache first for instant access
   useEffect(() => {
@@ -278,14 +279,14 @@ export const ViewOrderDetailsModal = ({ isOpen, onClose, order }: ViewOrderDetai
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0">
                   <Badge variant={getStatusBadgeVariant(order.order_status)} className="text-sm flex-shrink-0">
-                    {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > getOrderExpiryDays() && (
+                    {order.order_status === 'pending_review' && getDaysExpired(order.order_date, currentDate) > getOrderExpiryDays() && (
                       <AlertTriangle className={`h-3 w-3 mr-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`} />
                     )}
                     {getStatusText(order.order_status)}
                   </Badge>
-                  {order.order_status === 'pending_review' && getDaysExpired(order.order_date) > getOrderExpiryDays() && (
+                  {order.order_status === 'pending_review' && getDaysExpired(order.order_date, currentDate) > getOrderExpiryDays() && (
                     <span className={`text-xs whitespace-nowrap flex-shrink-0 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
-                      {Math.max(0, Math.ceil(getDaysExpired(order.order_date) - getOrderExpiryDays()))} days overdue
+                      {Math.max(0, Math.ceil(getDaysExpired(order.order_date, currentDate) - getOrderExpiryDays()))} days overdue
                     </span>
                   )}
                   <span className={`text-sm whitespace-nowrap flex-shrink-0 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'

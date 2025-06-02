@@ -285,4 +285,5 @@ export interface OrderCreate {
   quantity_cases: number;
   requested_by: number;
   notes?: string;
+  order_date?: string; // For demo purposes - allow custom order dates
 } 

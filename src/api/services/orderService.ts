@@ -10,11 +10,30 @@ import {
   OrderCreate
 } from '../types';
 import { AxiosError, AxiosResponse } from 'axios';
+import { useDateStore } from '@/store/useDateStore';
 
 export class OrderService {
   private static currentRequest: Promise<AxiosResponse<PaginatedResponse<Order>>> | null = null;
   private static currentRequestKey: string | null = null;
   private static requestCounter: number = 0;
+
+  // Helper method to get the configured date for "as of" filtering
+  private static getAsOfDate(): string | null {
+    const dateStore = useDateStore.getState();
+    if (dateStore.isDateConfigured && dateStore.configuredDate) {
+      const date = dateStore.configuredDate instanceof Date
+        ? dateStore.configuredDate
+        : new Date(dateStore.configuredDate);
+
+      // Use local date formatting to avoid timezone issues
+      // This ensures May 31st stays May 31st regardless of timezone
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    return null;
+  }
 
   // Get orders with pagination and filtering
   static async getOrders(
@@ -52,6 +71,12 @@ export class OrderService {
       }
       if (filters.dateTo) {
         params.append('date_to', filters.dateTo);
+      }
+
+      // Add "as of" date filtering for configured dates
+      const asOfDate = OrderService.getAsOfDate();
+      if (asOfDate) {
+        params.append('as_of_date', asOfDate);
       }
 
       // Store the current request
@@ -98,7 +123,16 @@ export class OrderService {
   }): Promise<ApiResponse<Order>> {
     try {
       // Convert camelCase to snake_case for backend
-      const backendOrderData = {
+      const backendOrderData: {
+        from_store_id?: number;
+        to_store_id: number;
+        product_id: number;
+        quantity_cases: number;
+        requested_by: number;
+        approved_by?: number;
+        notes?: string;
+        order_date?: string;
+      } = {
         from_store_id: orderData.fromStoreId,
         to_store_id: orderData.toStoreId,
         product_id: orderData.productId,
@@ -107,6 +141,23 @@ export class OrderService {
         approved_by: orderData.approvedBy, // Re-enabled now that backend supports it
         notes: orderData.notes
       };
+
+      // Add configured date if available (for demo purposes)
+      const dateStore = useDateStore.getState();
+      if (dateStore.isDateConfigured && dateStore.configuredDate) {
+        const configuredDate = dateStore.configuredDate instanceof Date
+          ? dateStore.configuredDate
+          : new Date(dateStore.configuredDate);
+
+        // Use local date formatting to avoid timezone issues
+        // This ensures June 10th stays June 10th regardless of timezone
+        const year = configuredDate.getFullYear();
+        const month = String(configuredDate.getMonth() + 1).padStart(2, '0');
+        const day = String(configuredDate.getDate()).padStart(2, '0');
+
+        // Send as YYYY-MM-DD format to avoid UTC conversion issues
+        backendOrderData.order_date = `${year}-${month}-${day}`;
+      }
 
       const response = await apiClient.post('/orders', backendOrderData);
       return {
@@ -450,6 +501,12 @@ export class OrderService {
       }
       if (category && category !== 'all') {
         params.append('category', category);
+      }
+
+      // Add "as of" date filtering for configured dates
+      const asOfDate = OrderService.getAsOfDate();
+      if (asOfDate) {
+        params.append('as_of_date', asOfDate);
       }
 
       const response = await apiClient.get(`/orders/status/summary?${params}`);
