@@ -7,19 +7,24 @@ import { useDarkModeStore } from "@/store/useDarkModeStore";
 type FilterType = 'pending_review' | 'expired_sla' | 'approved' | 'fulfilled' | null;
 
 export const OrderAnalyticsCards = () => {
-    const { statusSummary, isLoadingStatusSummary, error, fetchOrderStatusSummary, setFilters, filters } = useOrderStore();
+    const {
+        statusSummary,
+        isBatchLoading,
+        batchLoadingProgress,
+        isLoadingStatusSummary,
+        error,
+        setFilters,
+        filters
+    } = useOrderStore();
     const { isDarkMode } = useDarkModeStore();
     const [activeFilter, setActiveFilter] = useState<FilterType>(null);
 
+    // Set initial active filter based on current order store state
     useEffect(() => {
-        // Fetch status summary when component mounts or region/category filter changes
-        fetchOrderStatusSummary(filters.region, filters.category);
-
-        // Set initial active filter based on current order store state
         if (filters.status && filters.status !== 'all') {
             setActiveFilter(filters.status as FilterType);
         }
-    }, [fetchOrderStatusSummary, filters.region, filters.category]); // Include category in dependencies
+    }, [filters.status]);
 
     // Sync active filter with order store filters
     useEffect(() => {
@@ -47,7 +52,9 @@ export const OrderAnalyticsCards = () => {
             setFilters({
                 ...filters,
                 status: 'all',
-                expiredSlaOnly: false
+                expiredSlaOnly: false,
+                dateFrom: undefined,
+                dateTo: undefined
             });
         } else {
             // Clicking a different card - apply filter but preserve other filters
@@ -69,6 +76,10 @@ export const OrderAnalyticsCards = () => {
             }
         }
     };
+
+    // Smart loading state - only show loading for status summary when it's actually loading
+    // Don't show loading when just switching status filters (since status summary doesn't depend on status)
+    const isCurrentlyLoading = (isBatchLoading && batchLoadingProgress.statusSummary) || isLoadingStatusSummary;
 
     const getStatusCards = () => {
         if (!statusSummary) return [];
@@ -142,7 +153,7 @@ export const OrderAnalyticsCards = () => {
         );
     }
 
-    if (isLoadingStatusSummary || !statusSummary) {
+    if (isCurrentlyLoading || !statusSummary) {
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[1, 2, 3, 4].map((index) => (

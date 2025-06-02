@@ -231,6 +231,8 @@ export interface OrderFilters {
     from: Date;
     to: Date;
   };
+  dateFrom?: string;
+  dateTo?: string;
   searchTerm?: string;
   expiredSlaOnly?: boolean;
 }

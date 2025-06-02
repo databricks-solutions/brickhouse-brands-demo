@@ -6,10 +6,16 @@ import { OrdersTable } from "./OrdersTable";
 import { PlaceOrderModal } from "./PlaceOrderModal";
 import { OrderAnalyticsCards } from "./OrderAnalyticsCards";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
+import { useOrderStore } from "@/store/useOrderStore";
 
 export const RecentOrders = () => {
     const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
     const { isDarkMode } = useDarkModeStore();
+    const { filters } = useOrderStore();
+
+    // Determine if we're showing filtered data (from analytics cards)
+    const hasDateFilter = filters.dateFrom && filters.dateTo;
+    const subtitle = hasDateFilter ? "Last 30 days" : "All orders";
 
     const handleExportCSV = () => {
         // Mock CSV export functionality
@@ -31,7 +37,12 @@ export const RecentOrders = () => {
             <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
                 <CardHeader>
                     <div className="flex justify-between items-center">
-                        <CardTitle className={isDarkMode ? 'text-white' : ''}>Orders</CardTitle>
+                        <div>
+                            <CardTitle className={isDarkMode ? 'text-white' : ''}>Orders</CardTitle>
+                            <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {subtitle}
+                            </p>
+                        </div>
                         <div className="flex gap-3">
                             <Button
                                 onClick={handleExportCSV}

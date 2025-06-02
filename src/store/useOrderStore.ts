@@ -33,12 +33,19 @@ interface OrderState {
   // Centralized Filters - ALL filters managed here
   filters: OrderFilters;
 
-  // Loading states
+  // Unified Loading states - single source of truth
   isLoading: boolean;
   isLoadingOrder: boolean;
   isCreatingOrder: boolean;
   isUpdatingOrder: boolean;
   isLoadingStatusSummary: boolean;
+  // New: unified batch loading state
+  isBatchLoading: boolean;
+  batchLoadingProgress: {
+    orders: boolean;
+    statusSummary: boolean;
+    productPrefetch: boolean;
+  };
 
   // Error states
   error: string | null;
@@ -55,6 +62,12 @@ interface OrderState {
   fetchOrdersByRegion: (filters?: { status?: string; dateFrom?: string; dateTo?: string }) => Promise<void>;
   fetchOrderTrendsByRegion: (region?: string, days?: number) => Promise<void>;
   fetchOrderStatusSummary: (region?: string, category?: string) => Promise<void>;
+  // New: unified batch operations
+  batchFetchOrderData: (filters?: OrderFilters, page?: number, limit?: number, prefetchProducts?: boolean) => Promise<void>;
+  // New: smart filter operation that only runs necessary operations
+  smartFilterUpdate: (newFilters: Partial<OrderFilters>) => void;
+  // New: selective batch operation
+  smartBatchFetchOrderData: (filters?: OrderFilters, page?: number, limit?: number, operations?: { orders: boolean, statusSummary: boolean, productPrefetch: boolean }) => Promise<void>;
   createOrder: (orderData: {
     fromStoreId?: number;
     toStoreId: number;
@@ -101,19 +114,67 @@ export const useOrderStore = create<OrderState>()(
       isCreatingOrder: false,
       isUpdatingOrder: false,
       isLoadingStatusSummary: false,
+      // New unified loading states
+      isBatchLoading: false,
+      batchLoadingProgress: {
+        orders: false,
+        statusSummary: false,
+        productPrefetch: false,
+      },
       error: null,
 
       // Actions
       setFilters: (filters: Partial<OrderFilters>) => {
-        const newFilters = { ...get().filters, ...filters };
+        const currentFilters = get().filters;
+        const newFilters = { ...currentFilters, ...filters };
 
-        // Update filters and UI state IMMEDIATELY - no waiting!
+        // Detect what actually changed to determine which operations we need
+        const regionChanged = currentFilters.region !== newFilters.region;
+        const categoryChanged = currentFilters.category !== newFilters.category;
+        const statusOrSlaChanged =
+          currentFilters.status !== newFilters.status ||
+          currentFilters.expiredSlaOnly !== newFilters.expiredSlaOnly;
+
+        // If this is a status or SLA filter change (analytics card click), add 30-day date filter
+        // to match the analytics data
+        if (statusOrSlaChanged && !regionChanged && !categoryChanged) {
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+          newFilters.dateFrom = thirtyDaysAgo.toISOString().split('T')[0]; // YYYY-MM-DD format
+          newFilters.dateTo = new Date().toISOString().split('T')[0]; // Today
+        }
+
+        // If region or category changed (not analytics card click), clear date filters
+        // to show all-time data for those broader filters
+        if (regionChanged || categoryChanged) {
+          newFilters.dateFrom = undefined;
+          newFilters.dateTo = undefined;
+        }
+
+        // Determine which operations need to run
+        const needsStatusSummary = regionChanged || categoryChanged;
+        const needsOrders = regionChanged || categoryChanged || statusOrSlaChanged;
+        const needsProductPrefetch = needsOrders; // Prefetch whenever orders change
+
+        // Set loading states based on what actually needs to load
+        const loadingStates = {
+          orders: needsOrders,
+          statusSummary: needsStatusSummary,
+          productPrefetch: needsProductPrefetch,
+        };
+
+        // Update filters and UI state IMMEDIATELY
         set({
           filters: newFilters,
           currentPage: 1,
           error: null,
-          // Show loading state immediately for better UX
-          isLoading: true
+          // Use smart loading states
+          isBatchLoading: needsOrders || needsStatusSummary,
+          batchLoadingProgress: loadingStates,
+          // Keep existing loading states for backward compatibility
+          isLoading: needsOrders,
+          isLoadingStatusSummary: needsStatusSummary,
         });
 
         // Clear existing debounce timer
@@ -125,7 +186,8 @@ export const useOrderStore = create<OrderState>()(
         filterDebounceTimer = setTimeout(() => {
           // Use the filters from state (in case they changed again)
           const currentFilters = get().filters;
-          get().fetchOrders(currentFilters, 1, get().pageSize);
+          // Use smart batch fetch with selective operations
+          get().smartBatchFetchOrderData(currentFilters, 1, get().pageSize, loadingStates);
           filterDebounceTimer = null;
         }, 300); // 300ms debounce for API calls only
       },
@@ -136,8 +198,9 @@ export const useOrderStore = create<OrderState>()(
 
       setPage: (page: number) => {
         set({ currentPage: page });
-        const { pageSize } = get();
-        get().fetchOrders(undefined, page, pageSize);
+        // Use batch fetch for consistent loading experience
+        const { pageSize, filters } = get();
+        get().batchFetchOrderData(filters, page, pageSize, true);
       },
 
       setPageSize: (size: number) => {
@@ -304,8 +367,8 @@ export const useOrderStore = create<OrderState>()(
           if (result.success) {
             set({ isCreatingOrder: false });
 
-            // Refresh orders list
-            await get().fetchOrders(get().filters, get().currentPage);
+            // Refresh orders list using batch operation
+            await get().refreshOrders();
 
             return true;
           } else {
@@ -487,8 +550,265 @@ export const useOrderStore = create<OrderState>()(
       },
 
       refreshOrders: async () => {
-        const { currentPage, filters } = get();
-        await get().fetchOrders(filters, currentPage);
+        const { currentPage, filters, pageSize } = get();
+        await get().batchFetchOrderData(filters, currentPage, pageSize, true);
+      },
+
+      // New: Unified batch fetch operation
+      batchFetchOrderData: async (filters?: OrderFilters, page = 1, limit = 20, prefetchProducts = false) => {
+        const currentFilters = filters || get().filters;
+
+        try {
+          // Start all operations in parallel
+          const promises: Promise<any>[] = [];
+
+          // 1. Fetch orders
+          const ordersPromise = OrderService.getOrders(currentFilters, page, limit).then(result => {
+            // Update orders data immediately when available
+            set(state => ({
+              orders: result.data,
+              currentPage: result.page,
+              totalPages: result.total_pages,
+              totalItems: result.total,
+              batchLoadingProgress: {
+                ...state.batchLoadingProgress,
+                orders: false,
+              }
+            }));
+            return result;
+          });
+          promises.push(ordersPromise);
+
+          // 2. Fetch status summary in parallel
+          const statusPromise = OrderService.getOrderStatusSummary(
+            currentFilters.region,
+            currentFilters.category
+          ).then(result => {
+            set(state => ({
+              statusSummary: result,
+              batchLoadingProgress: {
+                ...state.batchLoadingProgress,
+                statusSummary: false,
+              }
+            }));
+            return result;
+          });
+          promises.push(statusPromise);
+
+          // 3. Wait for orders to complete, then prefetch products
+          let productPrefetchPromise: Promise<void> = Promise.resolve();
+          if (prefetchProducts) {
+            productPrefetchPromise = ordersPromise.then(async (ordersResult) => {
+              const productIds = [...new Set(ordersResult.data.map((order: Order) => order.product_id))];
+              if (productIds.length > 0) {
+                // Get product store instance
+                const { useProductStore } = await import('./useProductStore');
+                const productStore = useProductStore.getState();
+                await productStore.prefetchProductsByIds(productIds);
+              }
+
+              set(state => ({
+                batchLoadingProgress: {
+                  ...state.batchLoadingProgress,
+                  productPrefetch: false,
+                }
+              }));
+            });
+            promises.push(productPrefetchPromise);
+          } else {
+            // Mark product prefetch as complete immediately if not needed
+            set(state => ({
+              batchLoadingProgress: {
+                ...state.batchLoadingProgress,
+                productPrefetch: false,
+              }
+            }));
+          }
+
+          // Wait for all operations to complete
+          await Promise.all(promises);
+
+          // Clear all loading states when everything is done
+          set({
+            isBatchLoading: false,
+            isLoading: false,
+            isLoadingStatusSummary: false,
+            batchLoadingProgress: {
+              orders: false,
+              statusSummary: false,
+              productPrefetch: false,
+            }
+          });
+
+        } catch (error) {
+          set({
+            error: `Failed to fetch order data: ${error}`,
+            isBatchLoading: false,
+            isLoading: false,
+            isLoadingStatusSummary: false,
+            batchLoadingProgress: {
+              orders: false,
+              statusSummary: false,
+              productPrefetch: false,
+            }
+          });
+        }
+      },
+
+      // New: smart filter operation that only runs necessary operations
+      smartFilterUpdate: (newFilters: Partial<OrderFilters>) => {
+        const currentFilters = get().filters;
+        const updatedFilters = { ...currentFilters, ...newFilters };
+
+        // Update filters and UI state IMMEDIATELY with unified loading
+        set({
+          filters: updatedFilters,
+          currentPage: 1,
+          error: null,
+          // Use unified batch loading instead of individual loading states
+          isBatchLoading: true,
+          batchLoadingProgress: {
+            orders: true,
+            statusSummary: true,
+            productPrefetch: true,
+          },
+          // Keep existing loading states for backward compatibility
+          isLoading: true,
+          isLoadingStatusSummary: true,
+        });
+
+        // Clear existing debounce timer
+        if (filterDebounceTimer) {
+          clearTimeout(filterDebounceTimer);
+        }
+
+        // Debounce ONLY the API call, not the UI state
+        filterDebounceTimer = setTimeout(() => {
+          // Use the filters from state (in case they changed again)
+          const currentFilters = get().filters;
+          // Use new unified batch fetch
+          get().batchFetchOrderData(currentFilters, 1, get().pageSize, true);
+          filterDebounceTimer = null;
+        }, 300); // 300ms debounce for API calls only
+      },
+
+      // New: selective batch operation
+      smartBatchFetchOrderData: async (filters?: OrderFilters, page = 1, limit = 20, operations?: { orders: boolean, statusSummary: boolean, productPrefetch: boolean }) => {
+        const currentFilters = filters || get().filters;
+        const ops = operations || { orders: true, statusSummary: true, productPrefetch: true };
+
+        try {
+          // Start only the requested operations in parallel
+          const promises: Promise<any>[] = [];
+          let ordersResult: PaginatedResponse<Order> | null = null;
+
+          // 1. Fetch orders if needed
+          if (ops.orders) {
+            const ordersPromise = OrderService.getOrders(currentFilters, page, limit).then(result => {
+              // Update orders data immediately when available
+              set(state => ({
+                orders: result.data,
+                currentPage: result.page,
+                totalPages: result.total_pages,
+                totalItems: result.total,
+                batchLoadingProgress: {
+                  ...state.batchLoadingProgress,
+                  orders: false,
+                }
+              }));
+              ordersResult = result; // Store for product prefetching
+              return result;
+            });
+            promises.push(ordersPromise);
+          } else {
+            // Mark orders as complete immediately if not needed
+            set(state => ({
+              batchLoadingProgress: {
+                ...state.batchLoadingProgress,
+                orders: false,
+              }
+            }));
+          }
+
+          // 2. Fetch status summary if needed
+          if (ops.statusSummary) {
+            const statusPromise = OrderService.getOrderStatusSummary(
+              currentFilters.region,
+              currentFilters.category
+            ).then(result => {
+              set(state => ({
+                statusSummary: result,
+                batchLoadingProgress: {
+                  ...state.batchLoadingProgress,
+                  statusSummary: false,
+                }
+              }));
+              return result;
+            });
+            promises.push(statusPromise);
+          } else {
+            // Mark status summary as complete immediately if not needed
+            set(state => ({
+              batchLoadingProgress: {
+                ...state.batchLoadingProgress,
+                statusSummary: false,
+              }
+            }));
+          }
+
+          // Wait for orders to complete if they were requested
+          if (ops.orders && promises.length > 0) {
+            await Promise.all(promises);
+          }
+
+          // 3. Prefetch products if needed (after orders complete)
+          if (ops.productPrefetch && ordersResult && ordersResult.data) {
+            const productIds = [...new Set(ordersResult.data.map((order: Order) => order.product_id))];
+            if (productIds.length > 0) {
+              try {
+                // Get product store instance
+                const { useProductStore } = await import('./useProductStore');
+                const productStore = useProductStore.getState();
+                await productStore.prefetchProductsByIds(productIds);
+              } catch (error) {
+                console.warn('Product prefetching failed:', error);
+              }
+            }
+          }
+
+          // Mark product prefetch as complete
+          set(state => ({
+            batchLoadingProgress: {
+              ...state.batchLoadingProgress,
+              productPrefetch: false,
+            }
+          }));
+
+          // Clear all loading states when everything is done
+          set({
+            isBatchLoading: false,
+            isLoading: false,
+            isLoadingStatusSummary: false,
+            batchLoadingProgress: {
+              orders: false,
+              statusSummary: false,
+              productPrefetch: false,
+            }
+          });
+
+        } catch (error) {
+          set({
+            error: `Failed to fetch order data: ${error}`,
+            isBatchLoading: false,
+            isLoading: false,
+            isLoadingStatusSummary: false,
+            batchLoadingProgress: {
+              orders: false,
+              statusSummary: false,
+              productPrefetch: false,
+            }
+          });
+        }
       }
     }),
     {

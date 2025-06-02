@@ -4,8 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Loader2, ChevronLeft, ChevronRight, Package, Store, User, Calendar, Edit3, AlertTriangle, Eye } from "lucide-react";
 import { useOrderStore } from "@/store/useOrderStore";
-import { useInventoryStore } from "@/store/useInventoryStore";
-import { useProductStore } from "@/store/useProductStore";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
 import { Order } from "@/api/types";
 import { ViewOrderDetailsModal } from "./ViewOrderDetailsModal";
@@ -70,16 +68,15 @@ export const OrdersTable = () => {
     currentPage,
     totalPages,
     totalItems,
+    isBatchLoading,
+    batchLoadingProgress,
     isLoading,
     error,
-    fetchOrders,
+    batchFetchOrderData,
     setPage,
     setPageSize,
-    filters // All filters now centralized in order store
+    filters
   } = useOrderStore();
-
-  // Get product store for prefetching
-  const { prefetchProductsByIds, isPrefetching } = useProductStore();
 
   // Get dark mode state
   const { isDarkMode } = useDarkModeStore();
@@ -113,49 +110,62 @@ export const OrdersTable = () => {
     setPageSize(pageSize);
   }, [setPageSize, pageSize]);
 
-  // Simple effect - just fetch when filters change (debouncing handled in store)
+  // Trigger initial batch load when component mounts
   useEffect(() => {
-    fetchOrders(filters, 1, pageSize);
-  }, [fetchOrders, filters, pageSize]);
-
-  // Effect to prefetch product data when orders change
-  useEffect(() => {
-    if (orders.length > 0) {
-      // Extract unique product IDs from current orders
-      const productIds = [...new Set(orders.map(order => order.product_id))];
-      console.log(`🚀 Prefetching product data for ${orders.length} orders (${productIds.length} unique products):`, productIds);
-
-      // Performance monitoring
-      const startTime = performance.now();
-      const memoryBefore = (performance as any).memory ? (performance as any).memory.usedJSHeapSize : 0;
-
-      // Prefetch product data for instant modal access
-      prefetchProductsByIds(productIds).then(() => {
-        const endTime = performance.now();
-        const memoryAfter = (performance as any).memory ? (performance as any).memory.usedJSHeapSize : 0;
-        const duration = Math.round(endTime - startTime);
-        const memoryUsed = memoryAfter - memoryBefore;
-
-        console.log(`⚡ Prefetching completed in ${duration}ms`);
-        if (memoryUsed > 0) {
-          console.log(`📊 Memory used: ${(memoryUsed / 1024 / 1024).toFixed(2)}MB`);
-        }
-        console.log(`🎯 Average time per product: ${(duration / productIds.length).toFixed(1)}ms`);
-
-        // Calculate estimated time savings vs sequential loading
-        const estimatedSequentialTime = productIds.length * 200; // Assume 200ms per individual request
-        const timeSaved = estimatedSequentialTime - duration;
-        if (timeSaved > 0) {
-          console.log(`💨 Time saved vs sequential: ${timeSaved}ms (${Math.round((timeSaved / estimatedSequentialTime) * 100)}% faster)`);
-        }
-      }).catch(error => {
-        console.error('❌ Prefetching failed:', error);
-      });
+    // Only trigger if we don't have data and aren't currently loading
+    if (!isBatchLoading && orders.length === 0) {
+      batchFetchOrderData(filters, 1, pageSize, true);
     }
-  }, [orders, prefetchProductsByIds]);
+  }, [batchFetchOrderData, filters, pageSize, isBatchLoading, orders.length]);
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
+  };
+
+  // Use unified loading state for better UX
+  const isCurrentlyLoading = isBatchLoading || isLoading;
+
+  // Create progress indicator for batch loading
+  const renderLoadingProgress = () => {
+    if (!isBatchLoading) return null;
+
+    const progress = {
+      orders: !batchLoadingProgress.orders,
+      statusSummary: !batchLoadingProgress.statusSummary,
+      productPrefetch: !batchLoadingProgress.productPrefetch,
+    };
+
+    const completedSteps = Object.values(progress).filter(Boolean).length;
+    const totalSteps = 3;
+    const progressPercentage = (completedSteps / totalSteps) * 100;
+
+    // Generate status text for what's currently loading
+    const loadingSteps = [];
+    if (batchLoadingProgress.orders) loadingSteps.push('orders');
+    if (batchLoadingProgress.statusSummary) loadingSteps.push('analytics');
+    if (batchLoadingProgress.productPrefetch) loadingSteps.push('product details');
+
+    const statusText = loadingSteps.length > 0
+      ? `Loading ${loadingSteps.join(', ')}...`
+      : 'Finalizing...';
+
+    return (
+      <div className="relative">
+        <div className="h-1 w-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+          <div
+            className="h-full bg-blue-500 transition-all duration-300 ease-out"
+            style={{ width: `${progressPercentage}%` }}
+          />
+          {isDarkMode && (
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-400/20 to-transparent animate-pulse" />
+          )}
+        </div>
+        {/* Show loading status on mobile and desktop */}
+        <div className={`text-xs px-3 py-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          {statusText}
+        </div>
+      </div>
+    );
   };
 
   const renderMobileCard = (order: Order) => (
@@ -279,7 +289,7 @@ export const OrdersTable = () => {
   const getTableRows = () => {
     const rows = [];
 
-    if (isLoading) {
+    if (isCurrentlyLoading) {
       // Show skeleton rows while loading
       for (let i = 0; i < pageSize; i++) {
         rows.push(<div key={`skeleton-${i}`}>{renderSkeletonRow()}</div>);
@@ -398,24 +408,13 @@ export const OrdersTable = () => {
 
   return (
     <div className={`rounded-lg border ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-      {/* Add a subtle loading bar when filtering */}
-      {isLoading && (
-        <div className="h-1 w-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
-          <div className="h-full bg-blue-500 animate-pulse" style={{ width: '30%' }}></div>
-        </div>
-      )}
-
-      {/* Add prefetching indicator */}
-      {isPrefetching && !isLoading && (
-        <div className="h-1 w-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
-          <div className="h-full bg-green-500 animate-pulse" style={{ width: '60%' }}></div>
-        </div>
-      )}
+      {/* Unified progress indicator */}
+      {renderLoadingProgress()}
 
       {/* Mobile view */}
       <div className="lg:hidden">
         <div className="p-4 space-y-4">
-          {isLoading ? (
+          {isCurrentlyLoading ? (
             // Mobile skeleton loading
             Array.from({ length: pageSize }).map((_, index) => (
               <div
@@ -453,7 +452,7 @@ export const OrdersTable = () => {
       {/* Desktop Table - Always show structure */}
       <div className="hidden md:block overflow-x-auto relative">
         {/* Loading overlay for desktop */}
-        {isLoading && (
+        {isCurrentlyLoading && (
           <div className={`absolute inset-0 bg-opacity-75 flex items-center justify-center z-10 ${isDarkMode ? 'bg-gray-800' : 'bg-white'
             }`}>
             <div className="flex items-center">
@@ -497,7 +496,7 @@ export const OrdersTable = () => {
               variant="outline"
               size="sm"
               onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1 || isLoading}
+              disabled={currentPage === 1 || isCurrentlyLoading}
               className={isDarkMode ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white' : ''}
             >
               <ChevronLeft className="h-4 w-4" />
@@ -507,7 +506,7 @@ export const OrdersTable = () => {
               variant="outline"
               size="sm"
               onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages || isLoading}
+              disabled={currentPage === totalPages || isCurrentlyLoading}
               className={isDarkMode ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white' : ''}
             >
               Next
@@ -518,7 +517,7 @@ export const OrdersTable = () => {
       )}
 
       {/* Empty state - only show when not loading and no orders */}
-      {!isLoading && orders.length === 0 && (
+      {!isCurrentlyLoading && orders.length === 0 && (
         <div className="text-center py-12 hidden md:block">
           <Package className={`h-12 w-12 mx-auto mb-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
           <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>No orders found</p>

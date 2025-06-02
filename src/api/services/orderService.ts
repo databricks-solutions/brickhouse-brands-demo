@@ -9,75 +9,66 @@ import {
   Product,
   OrderCreate
 } from '../types';
-import { AxiosError } from 'axios';
+import { AxiosError, AxiosResponse } from 'axios';
 
 export class OrderService {
-  private static currentRequest: Promise<PaginatedResponse<Order>> | null = null;
+  private static currentRequest: Promise<AxiosResponse<PaginatedResponse<Order>>> | null = null;
   private static currentRequestKey: string | null = null;
   private static requestCounter: number = 0;
 
-  // Get all orders with optional filtering
+  // Get orders with pagination and filtering
   static async getOrders(
     filters: OrderFilters = {},
     page: number = 1,
-    limit: number = 50
+    limit: number = 20
   ): Promise<PaginatedResponse<Order>> {
     try {
-      // Convert camelCase to snake_case for backend compatibility
-      const backendFilters: any = { ...filters };
-      if (filters.expiredSlaOnly !== undefined) {
-        backendFilters.expired_sla_only = filters.expiredSlaOnly;
-        delete backendFilters.expiredSlaOnly;
+      // Cancel any existing request
+      if (OrderService.currentRequest) {
+        // Note: We can't actually cancel the request with axios, but we can ignore the result
+        OrderService.currentRequest = null;
       }
 
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
-        ...Object.fromEntries(
-          Object.entries(backendFilters).filter(([_, value]) => value != null && value !== '')
-        )
       });
 
-      // Create a unique request key for deduplication
-      const requestKey = `/orders?${params}`;
-
-      // Increment request counter for tracking
-      const requestId = ++this.requestCounter;
-
-      // If we have an identical request in flight, return that promise
-      if (this.currentRequestKey === requestKey && this.currentRequest) {
-        return this.currentRequest;
+      // Add filters to params
+      if (filters.region && filters.region !== 'all') {
+        params.append('region', filters.region);
+      }
+      if (filters.category && filters.category !== 'all') {
+        params.append('category', filters.category);
+      }
+      if (filters.status && filters.status !== 'all') {
+        params.append('status', filters.status);
+      }
+      if (filters.expiredSlaOnly) {
+        params.append('expired_sla_only', 'true');
+      }
+      if (filters.dateFrom) {
+        params.append('date_from', filters.dateFrom);
+      }
+      if (filters.dateTo) {
+        params.append('date_to', filters.dateTo);
       }
 
-      // Cancel any previous request by clearing it
-      if (this.currentRequest && this.currentRequestKey !== requestKey) {
-        this.currentRequest = null;
-        this.currentRequestKey = null;
+      // Store the current request
+      const request = apiClient.get<PaginatedResponse<Order>>(`/orders?${params}`);
+      OrderService.currentRequest = request;
+
+      const response = await request;
+
+      // Clear the current request if this was the active one
+      if (OrderService.currentRequest === request) {
+        OrderService.currentRequest = null;
       }
 
-      // Create new request
-      this.currentRequestKey = requestKey;
-      this.currentRequest = apiClient.get(requestKey).then(response => {
-        // Only clear if this is still the current request
-        if (this.currentRequestKey === requestKey) {
-          this.currentRequest = null;
-          this.currentRequestKey = null;
-        }
-        return response.data;
-      }).catch(error => {
-        // Clear on error, but only if this is still the current request
-        if (this.currentRequestKey === requestKey) {
-          this.currentRequest = null;
-          this.currentRequestKey = null;
-        }
-        throw error;
-      });
-
-      return this.currentRequest;
+      return response.data;
     } catch (error) {
-      // Clear on error
-      this.currentRequest = null;
-      this.currentRequestKey = null;
+      // Clear the current request on error
+      OrderService.currentRequest = null;
       throw new Error(handleApiError(error as AxiosError));
     }
   }

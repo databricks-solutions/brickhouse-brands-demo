@@ -25,6 +25,12 @@ async def get_orders(
     category: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     expired_sla_only: Optional[bool] = Query(False),
+    date_from: Optional[str] = Query(
+        None, description="Filter orders from this date (YYYY-MM-DD)"
+    ),
+    date_to: Optional[str] = Query(
+        None, description="Filter orders to this date (YYYY-MM-DD)"
+    ),
 ):
     """Get orders with pagination and optional filtering"""
     try:
@@ -83,6 +89,15 @@ async def get_orders(
             if category and category != "all":
                 conditions.append(" AND p.category = %s")
                 params.append(category)
+
+            # Add date filtering
+            if date_from:
+                conditions.append(" AND o.order_date >= %s")
+                params.append(date_from)
+
+            if date_to:
+                conditions.append(" AND o.order_date <= %s")
+                params.append(date_to)
 
             # Add conditions to both queries
             condition_str = "".join(conditions)
