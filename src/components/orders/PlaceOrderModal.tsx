@@ -73,9 +73,6 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
   // Get dark mode state
   const { isDarkMode } = useDarkModeStore();
 
-  // Debounce search input to avoid API exhaustion
-  const debouncedSearchTerm = useDebounce(searchInput, getApiDebounceDelay());
-
   // Get data from stores
   const { products, fetchProducts, isLoading: isLoadingProducts, error: productError } = useProductStore();
   const { regionOptions, stores, storeOptions, fetchRegionOptions, fetchStores, fetchStoreOptions, isLoading: isLoadingStores } = useStoreStore();
@@ -109,17 +106,35 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
     }
   }, [isOpen, currentUser, setCurrentUser]);
 
-  // Update warehouse inventory when debounced search term changes
-  useEffect(() => {
-    if (isOpen) {
-      // Always fetch inventory when search changes (including when cleared)
-      const searchFilter = debouncedSearchTerm ? { search: debouncedSearchTerm } : {};
-      fetchWarehouseInventory(searchFilter);
-    }
-  }, [debouncedSearchTerm, fetchWarehouseInventory, isOpen]);
-
   // Get all products from warehouse inventory response (includes products with 0 stock)
   const availableProducts = inventory || [];
+
+  // Enhanced client-side filtering for better search experience
+  const getFilteredProducts = () => {
+    if (!searchInput.trim()) {
+      return availableProducts;
+    }
+
+    const searchTerm = searchInput.toLowerCase().trim();
+
+    return availableProducts.filter(item => {
+      // Search by product ID (exact match or starts with)
+      const productIdMatch = item.product_id.toString().includes(searchTerm);
+
+      // Search by product name (partial match)
+      const nameMatch = item.product_name.toLowerCase().includes(searchTerm);
+
+      // Search by brand (partial match)
+      const brandMatch = item.brand?.toLowerCase().includes(searchTerm);
+
+      // Search by category (partial match)
+      const categoryMatch = item.category?.toLowerCase().includes(searchTerm);
+
+      return productIdMatch || nameMatch || brandMatch || categoryMatch;
+    });
+  };
+
+  const filteredProducts = getFilteredProducts();
 
   // Get stock information for a product from warehouse
   const getProductStock = (productId: number) => {
@@ -352,7 +367,7 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
                     }`} />
                   <Input
                     id="search"
-                    placeholder="Search by product name or SKU..."
+                    placeholder="Search by product ID, name, brand, or category..."
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
                     className={`pl-10 focus-visible:ring-offset-0 focus-visible:ring-2 ${isDarkMode
@@ -378,13 +393,13 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
                     <span className={`ml-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
                       }`}>Loading products...</span>
                   </div>
-                ) : availableProducts.length === 0 ? (
+                ) : filteredProducts.length === 0 ? (
                   <div className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
                     }`}>
                     {searchInput ? "No products found matching your search" : "No products available"}
                   </div>
                 ) : (
-                  availableProducts.map((inventoryItem) => {
+                  filteredProducts.map((inventoryItem) => {
                     const stock = getProductStock(inventoryItem.product_id);
                     const stockInfo = getStockLevel(stock.available);
 
@@ -564,104 +579,91 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
                                   <Plus className="h-3 w-3" />
                                 </Button>
                               </div>
-                              <span className={`font-medium text-sm ${isDarkMode ? 'text-white' : ''
-                                }`}>
-                                {formatCurrency(item.product.unit_price * item.quantity)}
-                              </span>
                             </div>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    <div className={`border-t pt-3 flex-shrink-0 ${isDarkMode ? 'border-gray-600' : ''
-                      }`}>
-                      <div className={`flex justify-between items-center font-semibold ${isDarkMode ? 'text-white' : ''
+                    {/* Store Selection - moved here, below items list */}
+                    <div className="flex-shrink-0">
+                      <Label htmlFor="target-store" className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : ''
                         }`}>
-                        <span>Total:</span>
-                        <span>{formatCurrency(getTotalValue())}</span>
-                      </div>
+                        Delivery Store
+                      </Label>
+                      <Select value={selectedToStore} onValueChange={setSelectedToStore}>
+                        <SelectTrigger className={`w-full mt-1 ${!selectedToStore && orderItems.length > 0
+                          ? (isDarkMode ? 'border-orange-500 bg-orange-900/20 text-white' : 'border-orange-300 bg-orange-50')
+                          : (isDarkMode ? 'bg-gray-600 border-gray-500 text-white' : '')
+                          }`}>
+                          <SelectValue placeholder={isLoadingStores ? "Loading stores..." : "Select delivery store"} />
+                        </SelectTrigger>
+                        <SelectContent className={isDarkMode ? 'bg-gray-700 border-gray-600' : ''}>
+                          {storeOptions.map((store) => (
+                            <SelectItem
+                              key={store.value}
+                              value={store.value.toString()}
+                              className={isDarkMode
+                                ? 'text-white hover:bg-gray-600 focus:bg-gray-600 hover:text-white focus:text-white'
+                                : ''}
+                            >
+                              <div className="flex flex-col">
+                                <span className="font-medium">{store.label}</span>
+                                <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                                  }`}>{store.region}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedToStore ? (
+                        <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
+                          <MapPin className="h-3 w-3 inline mr-1" />
+                          Orders will be shipped from Main Warehouse to selected store
+                        </p>
+                      ) : orderItems.length > 0 ? (
+                        <p className={`text-xs mt-1 ${isDarkMode ? 'text-orange-400' : 'text-orange-600'
+                          }`}>
+                          Please select a delivery store to continue
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="space-y-2 flex-shrink-0">
+                      <Button
+                        onClick={submitOrder}
+                        className={`w-full font-medium ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'
+                          }`}
+                        disabled={orderItems.length === 0 || !selectedToStore || isCreatingOrder}
+                      >
+                        {isCreatingOrder ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Submitting Orders...
+                          </>
+                        ) : orderItems.length === 0 ? (
+                          'Add items to continue'
+                        ) : !selectedToStore ? (
+                          'Select delivery store to submit'
+                        ) : (
+                          `Submit Order (${orderItems.length} items)`
+                        )}
+                      </Button>
+                      <Button
+                        onClick={onClose}
+                        variant="outline"
+                        className={`w-full ${isDarkMode
+                          ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white'
+                          : ''
+                          }`}
+                        disabled={isCreatingOrder}
+                      >
+                        Cancel
+                      </Button>
                     </div>
                   </>
                 )}
-
-                {/* Store Selection - moved here, below total */}
-                <div className="flex-shrink-0">
-                  <Label htmlFor="target-store" className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : ''
-                    }`}>
-                    Delivery Store
-                  </Label>
-                  <Select value={selectedToStore} onValueChange={setSelectedToStore}>
-                    <SelectTrigger className={`w-full mt-1 ${!selectedToStore && orderItems.length > 0
-                      ? (isDarkMode ? 'border-orange-500 bg-orange-900/20 text-white' : 'border-orange-300 bg-orange-50')
-                      : (isDarkMode ? 'bg-gray-600 border-gray-500 text-white' : '')
-                      }`}>
-                      <SelectValue placeholder={isLoadingStores ? "Loading stores..." : "Select delivery store"} />
-                    </SelectTrigger>
-                    <SelectContent className={isDarkMode ? 'bg-gray-700 border-gray-600' : ''}>
-                      {storeOptions.map((store) => (
-                        <SelectItem
-                          key={store.value}
-                          value={store.value.toString()}
-                          className={isDarkMode
-                            ? 'text-white hover:bg-gray-600 focus:bg-gray-600 hover:text-white focus:text-white'
-                            : ''}
-                        >
-                          <div className="flex flex-col">
-                            <span className="font-medium">{store.label}</span>
-                            <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                              }`}>{store.region}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedToStore ? (
-                    <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                      <MapPin className="h-3 w-3 inline mr-1" />
-                      Orders will be shipped from Main Warehouse to selected store
-                    </p>
-                  ) : orderItems.length > 0 ? (
-                    <p className={`text-xs mt-1 ${isDarkMode ? 'text-orange-400' : 'text-orange-600'
-                      }`}>
-                      Please select a delivery store to continue
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="space-y-2 flex-shrink-0">
-                  <Button
-                    onClick={submitOrder}
-                    className={`w-full font-medium ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'
-                      }`}
-                    disabled={orderItems.length === 0 || !selectedToStore || isCreatingOrder}
-                  >
-                    {isCreatingOrder ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Submitting Orders...
-                      </>
-                    ) : orderItems.length === 0 ? (
-                      'Add items to continue'
-                    ) : !selectedToStore ? (
-                      'Select delivery store to submit'
-                    ) : (
-                      `Submit Order (${orderItems.length} items)`
-                    )}
-                  </Button>
-                  <Button
-                    onClick={onClose}
-                    variant="outline"
-                    className={`w-full ${isDarkMode
-                      ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white'
-                      : ''
-                      }`}
-                    disabled={isCreatingOrder}
-                  >
-                    Cancel
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           </div>
