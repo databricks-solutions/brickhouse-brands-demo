@@ -72,11 +72,11 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
             {/* Left section: Logo and Company Name */}
             <div className="flex items-center space-x-8">
               <div className="flex items-center space-x-3">
-                {/* Databricks Logo */}
+                {/* Brickstore Brands Logo */}
                 <div className="w-8 h-8 flex items-center justify-center">
                   <img
-                    src="https://cdn.brandfetch.io/idSUrLOWbH/theme/dark/symbol.svg?c=1dxbfHSJFAPEGdCLU4o5B"
-                    alt="Databricks Logo"
+                    src="/brickstore_brands_logo_favicon.png"
+                    alt="Brickstore Brands Logo"
                     className="w-8 h-8"
                   />
                 </div>
