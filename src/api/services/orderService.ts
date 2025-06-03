@@ -73,7 +73,7 @@ export class OrderService {
         params.append('date_to', filters.dateTo);
       }
 
-      // Add "as of" date filtering for configured dates
+      // Always include as_of_date from DateStore if available (for demo mode consistency)
       const asOfDate = OrderService.getAsOfDate();
       if (asOfDate) {
         params.append('as_of_date', asOfDate);
@@ -483,7 +483,7 @@ export class OrderService {
   }
 
   // Get order status summary with SLA tracking
-  static async getOrderStatusSummary(region?: string, category?: string): Promise<{
+  static async getOrderStatusSummary(filters: OrderFilters = {}): Promise<{
     status_counts: {
       pending_review: number;
       approved: number;
@@ -496,14 +496,24 @@ export class OrderService {
   }> {
     try {
       const params = new URLSearchParams();
-      if (region && region !== 'all') {
-        params.append('region', region);
+
+      // Add region and category filters
+      if (filters.region && filters.region !== 'all') {
+        params.append('region', filters.region);
       }
-      if (category && category !== 'all') {
-        params.append('category', category);
+      if (filters.category && filters.category !== 'all') {
+        params.append('category', filters.category);
       }
 
-      // Add "as of" date filtering for configured dates
+      // Use dateFrom and dateTo to sync with date filter selection
+      if (filters.dateFrom) {
+        params.append('date_from', filters.dateFrom);
+      }
+      if (filters.dateTo) {
+        params.append('date_to', filters.dateTo);
+      }
+
+      // Always include as_of_date from DateStore if available (for demo mode consistency)
       const asOfDate = OrderService.getAsOfDate();
       if (asOfDate) {
         params.append('as_of_date', asOfDate);

@@ -217,6 +217,8 @@ export interface InventoryFilters {
     from: Date;
     to: Date;
   };
+  dateFrom?: string;
+  dateTo?: string;
   lowStockOnly?: boolean;
   searchTerm?: string;
 }

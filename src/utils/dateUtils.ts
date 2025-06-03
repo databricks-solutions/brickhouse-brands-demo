@@ -102,4 +102,36 @@ export const getLastDaysRange = (days: number): { from: string; to: string } => 
     from: formatDateForAPI(fromDate),
     to: formatDateForAPI(currentDate),
   };
+};
+
+/**
+ * Get a human-readable description for a date range
+ */
+export const getDateRangeDescription = (dateFrom: string, dateTo: string): string => {
+  const fromDate = new Date(dateFrom);
+  const toDate = new Date(dateTo);
+  const currentDate = getCurrentDate();
+
+  // Check if this matches our standard ranges
+  const diffTime = toDate.getTime() - fromDate.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  // Check if 'to' date is approximately today
+  const isToToday = Math.abs(toDate.getTime() - currentDate.getTime()) < (24 * 60 * 60 * 1000);
+
+  if (isToToday) {
+    if (diffDays <= 7) {
+      return "Past 7 days";
+    } else if (diffDays <= 30) {
+      return "Past 30 days";
+    } else if (diffDays <= 90) {
+      return "Past 90 days";
+    } else if (diffDays <= 180) {
+      return "Past 6 months";
+    } else if (diffDays <= 365) {
+      return "Past year";
+    }
+  }
+
+  return "Custom date range";
 }; 

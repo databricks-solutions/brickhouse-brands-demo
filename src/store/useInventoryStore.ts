@@ -9,6 +9,7 @@ import {
   PaginatedResponse
 } from '../api/types';
 import { InventoryService } from '../api/services/inventoryService';
+import { getLastDaysRange } from '@/utils/dateUtils';
 
 interface InventoryState {
   // Data
@@ -61,6 +62,8 @@ interface InventoryState {
   refreshData: () => Promise<void>;
 }
 
+const defaultDateRange = getLastDaysRange(30);
+
 const initialFilters: InventoryFilters = {
   storeId: 'all',
   region: 'all',
@@ -68,6 +71,9 @@ const initialFilters: InventoryFilters = {
   brand: 'all',
   lowStockOnly: false,
   searchTerm: '',
+  // Date filters will be managed by shared date filter store
+  dateFrom: undefined,
+  dateTo: undefined,
 };
 
 export const useInventoryStore = create<InventoryState>()(

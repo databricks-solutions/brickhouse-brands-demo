@@ -6,23 +6,20 @@ import { OrdersTable } from "./OrdersTable";
 import { PlaceOrderModal } from "./PlaceOrderModal";
 import { OrderAnalyticsCards } from "./OrderAnalyticsCards";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
-import { useOrderStore } from "@/store/useOrderStore";
+import { useDateFilterStore } from "@/store/useDateFilterStore";
 import { useDateStore } from "@/store/useDateStore";
+import { getDateRangeDescription } from "@/utils/dateUtils";
 
 export const RecentOrders = () => {
     const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
     const { isDarkMode } = useDarkModeStore();
-    const { filters } = useOrderStore();
+    const { dateFrom, dateTo, hasDateFilter } = useDateFilterStore();
     const { isDateConfigured, configuredDate } = useDateStore();
 
-    // Determine if we're showing filtered data (from analytics cards)
-    const hasDateFilter = filters.dateFrom && filters.dateTo;
-
     const getSubtitle = () => {
-        if (hasDateFilter) {
-            return "Last 30 days";
+        if (hasDateFilter() && dateFrom && dateTo) {
+            return getDateRangeDescription(dateFrom, dateTo);
         }
-        // Always show "All orders" instead of configured date to hide date spoofing
         return "All orders";
     };
 

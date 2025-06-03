@@ -62,7 +62,7 @@ interface OrderState {
   fetchPendingOrders: (region?: string) => Promise<void>;
   fetchOrdersByRegion: (filters?: { status?: string; dateFrom?: string; dateTo?: string }) => Promise<void>;
   fetchOrderTrendsByRegion: (region?: string, days?: number) => Promise<void>;
-  fetchOrderStatusSummary: (region?: string, category?: string) => Promise<void>;
+  fetchOrderStatusSummary: (filters?: OrderFilters) => Promise<void>;
   // New: unified batch operations
   batchFetchOrderData: (filters?: OrderFilters, page?: number, limit?: number, prefetchProducts?: boolean) => Promise<void>;
   // New: smart filter operation that only runs necessary operations
@@ -91,6 +91,8 @@ interface OrderState {
   clearStaleData: () => void;
 }
 
+const defaultDateRange = getLastDaysRange(30);
+
 const initialFilters: OrderFilters = {
   storeId: 'all',
   region: 'all',
@@ -98,6 +100,9 @@ const initialFilters: OrderFilters = {
   searchTerm: '',
   expiredSlaOnly: false,
   category: 'all',
+  // Date filters will be managed by shared date filter store
+  dateFrom: undefined,
+  dateTo: undefined,
 };
 
 export const useOrderStore = create<OrderState>()(
@@ -128,8 +133,11 @@ export const useOrderStore = create<OrderState>()(
 
       // Actions
       setFilters: (filters: Partial<OrderFilters>) => {
+        console.log('OrderStore: setFilters called with:', filters);
         const currentFilters = get().filters;
         const newFilters = { ...currentFilters, ...filters };
+        console.log('OrderStore: Current filters:', currentFilters);
+        console.log('OrderStore: New filters:', newFilters);
 
         // Detect what actually changed to determine which operations we need
         const regionChanged = currentFilters.region !== newFilters.region;
@@ -137,26 +145,34 @@ export const useOrderStore = create<OrderState>()(
         const statusOrSlaChanged =
           currentFilters.status !== newFilters.status ||
           currentFilters.expiredSlaOnly !== newFilters.expiredSlaOnly;
+        const dateFilterChanged =
+          currentFilters.dateFrom !== newFilters.dateFrom ||
+          currentFilters.dateTo !== newFilters.dateTo;
 
-        // If this is a status or SLA filter change (analytics card click), add 30-day date filter
-        // to match the analytics data
-        if (statusOrSlaChanged && !regionChanged && !categoryChanged) {
-          const dateRange = getLastDaysRange(30);
-          newFilters.dateFrom = dateRange.from;
-          newFilters.dateTo = dateRange.to;
-        }
+        console.log('OrderStore: Change detection:', {
+          regionChanged,
+          categoryChanged,
+          statusOrSlaChanged,
+          dateFilterChanged
+        });
 
-        // If region or category changed (not analytics card click), clear date filters
-        // to show all-time data for those broader filters
-        if (regionChanged || categoryChanged) {
-          newFilters.dateFrom = undefined;
-          newFilters.dateTo = undefined;
-        }
+        // NOTE: Date filters are now managed by the shared DateFilterStore
+        // Don't automatically set date filters based on analytics card clicks
+        // The analytics cards will respect the current shared date filter state
+
+        // If region or category changed, don't clear date filters since they're managed separately
+        // The shared date filter will persist across region/category changes
 
         // Determine which operations need to run
-        const needsStatusSummary = regionChanged || categoryChanged;
-        const needsOrders = regionChanged || categoryChanged || statusOrSlaChanged;
+        const needsStatusSummary = regionChanged || categoryChanged || dateFilterChanged;
+        const needsOrders = regionChanged || categoryChanged || statusOrSlaChanged || dateFilterChanged;
         const needsProductPrefetch = needsOrders; // Prefetch whenever orders change
+
+        console.log('OrderStore: Operations needed:', {
+          needsStatusSummary,
+          needsOrders,
+          needsProductPrefetch
+        });
 
         // Set loading states based on what actually needs to load
         const loadingStates = {
@@ -185,6 +201,7 @@ export const useOrderStore = create<OrderState>()(
 
         // Debounce ONLY the API call, not the UI state
         filterDebounceTimer = setTimeout(() => {
+          console.log('OrderStore: Executing debounced API calls');
           // Use the filters from state (in case they changed again)
           const currentFilters = get().filters;
           // Use smart batch fetch with selective operations
@@ -212,11 +229,12 @@ export const useOrderStore = create<OrderState>()(
         set({ selectedOrder: null });
       },
 
-      fetchOrderStatusSummary: async (region?: string, category?: string) => {
+      fetchOrderStatusSummary: async (filters?: OrderFilters) => {
         set({ isLoadingStatusSummary: true, error: null });
 
         try {
-          const result = await OrderService.getOrderStatusSummary(region, category);
+          const currentFilters = filters || get().filters;
+          const result = await OrderService.getOrderStatusSummary(currentFilters);
 
           set({
             statusSummary: result,
@@ -581,10 +599,7 @@ export const useOrderStore = create<OrderState>()(
           promises.push(ordersPromise);
 
           // 2. Fetch status summary in parallel
-          const statusPromise = OrderService.getOrderStatusSummary(
-            currentFilters.region,
-            currentFilters.category
-          ).then(result => {
+          const statusPromise = OrderService.getOrderStatusSummary(currentFilters).then(result => {
             set(state => ({
               statusSummary: result,
               batchLoadingProgress: {
@@ -733,10 +748,7 @@ export const useOrderStore = create<OrderState>()(
 
           // 2. Fetch status summary if needed
           if (ops.statusSummary) {
-            const statusPromise = OrderService.getOrderStatusSummary(
-              currentFilters.region,
-              currentFilters.category
-            ).then(result => {
+            const statusPromise = OrderService.getOrderStatusSummary(currentFilters).then(result => {
               set(state => ({
                 statusSummary: result,
                 batchLoadingProgress: {

@@ -77,7 +77,7 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
   const { products, fetchProducts, isLoading: isLoadingProducts, error: productError } = useProductStore();
   const { regionOptions, stores, storeOptions, fetchRegionOptions, fetchStores, fetchStoreOptions, isLoading: isLoadingStores } = useStoreStore();
   const { inventory, fetchWarehouseInventory } = useInventoryStore();
-  const { createOrder, isCreatingOrder, fetchOrderStatusSummary, refreshOrders } = useOrderStore();
+  const { createOrder, isCreatingOrder, fetchOrderStatusSummary, refreshOrders, filters } = useOrderStore();
   const { currentUser, setCurrentUser, currentRegionalManager } = useUserStore();
 
   // Fetch initial data
@@ -308,7 +308,7 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
       });
 
       // Refresh the analytics cards to show updated counts
-      await fetchOrderStatusSummary();
+      await fetchOrderStatusSummary(filters);
 
       // Refresh the orders table to show the new orders immediately
       await refreshOrders();

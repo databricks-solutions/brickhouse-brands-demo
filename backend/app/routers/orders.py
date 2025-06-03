@@ -74,7 +74,9 @@ async def get_orders(
             params = []
             conditions = []
 
-            # Handle "as of" date filtering - this filters to only show orders that existed as of that date
+            # Handle date filtering - both as_of_date and date_from/date_to can work together
+            # as_of_date controls which orders "existed" at that point in time
+            # date_from/date_to filters within that existing dataset
             if as_of_date:
                 # Use DATE() function to compare just the date part, ignoring time
                 # This ensures we get all orders from the specified date, regardless of timestamp
@@ -112,7 +114,7 @@ async def get_orders(
                 conditions.append(" AND p.category = %s")
                 params.append(category)
 
-            # Date range filtering (for analytics cards)
+            # Apply date range filters within the as_of_date constraint
             if date_from:
                 conditions.append(" AND DATE(o.order_date) >= %s")
                 params.append(date_from)
@@ -120,8 +122,9 @@ async def get_orders(
                 conditions.append(" AND DATE(o.order_date) <= %s")
                 params.append(date_to)
 
-            # Add conditions to both queries
             condition_str = "".join(conditions)
+
+            # Add conditions to both queries
             base_query += condition_str
             count_query += condition_str
 
@@ -329,6 +332,12 @@ async def update_order_status(
 async def get_order_status_summary(
     region: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
+    date_from: Optional[str] = Query(
+        None, description="Filter orders from this date (YYYY-MM-DD)"
+    ),
+    date_to: Optional[str] = Query(
+        None, description="Filter orders to this date (YYYY-MM-DD)"
+    ),
     as_of_date: Optional[str] = Query(
         None, description="Show order status as it was on this date (YYYY-MM-DD)"
     ),
@@ -339,7 +348,9 @@ async def get_order_status_summary(
             conditions = []
             params = []
 
-            # Handle "as of" date filtering
+            # Handle date filtering - both as_of_date and date_from/date_to can work together
+            # as_of_date controls which orders "existed" at that point in time
+            # date_from/date_to filters within that existing dataset
             if as_of_date:
                 # Use DATE() function to compare just the date part, ignoring time
                 # This ensures we get all orders from the specified date, regardless of timestamp
@@ -358,20 +369,32 @@ async def get_order_status_summary(
                 conditions.append(" AND p.category = %s")
                 params.append(category)
 
+            # Apply date range filters within the as_of_date constraint
+            if date_from:
+                conditions.append(" AND DATE(o.order_date) >= %s")
+                params.append(date_from)
+            if date_to:
+                conditions.append(" AND DATE(o.order_date) <= %s")
+                params.append(date_to)
+
             condition_str = "".join(conditions)
 
-            # Get basic status counts
-            if as_of_date:
-                # When using as_of_date, show data as it was 30 days before that date
-                date_range_condition = f"WHERE o.order_date >= %s::DATE - INTERVAL '30 days' AND o.order_date <= %s {condition_str}"
-                count_params = [as_of_date, as_of_date] + params
+            # Determine summary period description
+            if date_from and date_to:
+                if as_of_date:
+                    summary_period = (
+                        f"From {date_from} to {date_to} (as of {as_of_date})"
+                    )
+                else:
+                    summary_period = f"From {date_from} to {date_to}"
+            elif as_of_date:
+                summary_period = f"As of {as_of_date}"
             else:
-                # Normal case: last 30 days from current date
-                date_range_condition = f"WHERE o.order_date >= CURRENT_DATE - INTERVAL '30 days' {condition_str}"
-                count_params = params
+                summary_period = "All time"
 
-            cursor.execute(
-                f"""
+            # Get basic status counts with the combined filters
+            # Use the same conditions for both the main query and count query
+            status_query = f"""
                 SELECT 
                     o.order_status,
                     COUNT(*) as count,
@@ -379,37 +402,44 @@ async def get_order_status_summary(
                 FROM orders o
                 JOIN stores s ON o.to_store_id = s.store_id
                 JOIN products p ON o.product_id = p.product_id
-                {date_range_condition}
+                WHERE 1=1 {condition_str}
                 GROUP BY o.order_status
                 ORDER BY count DESC
-            """,
-                count_params,
-            )
+            """
 
+            cursor.execute(status_query, params)
             status_summary = cursor.fetchall()
 
-            # Get expired SLA count (pending review orders over 2 days old)
+            # Get expired SLA count with the same base conditions
+            # For SLA calculation, we need to check if orders were pending for > 2 days
+            # relative to the as_of_date (if provided) or current time
+            sla_conditions = list(conditions)  # Copy base conditions
+            sla_params = list(params)  # Copy base params
+
+            # Add SLA-specific condition
+            sla_conditions.append(" AND o.order_status = 'pending_review'")
+
             if as_of_date:
                 # Calculate expired SLA based on the as_of_date
-                # Use DATE() function to properly compare date parts
-                sla_condition = f"WHERE o.order_status = 'pending_review' AND DATE(o.order_date) < DATE(%s) - INTERVAL '2 days' {condition_str}"
-                sla_params = [as_of_date] + params
+                sla_conditions.append(
+                    " AND DATE(o.order_date) < DATE(%s) - INTERVAL '2 days'"
+                )
+                sla_params.append(as_of_date)
             else:
                 # Normal case: calculate based on current time
-                sla_condition = f"WHERE o.order_status = 'pending_review' AND o.order_date < NOW() - INTERVAL '2 days' {condition_str}"
-                sla_params = params
+                sla_conditions.append(" AND o.order_date < NOW() - INTERVAL '2 days'")
 
-            cursor.execute(
-                f"""
+            sla_condition_str = "".join(sla_conditions)
+
+            sla_query = f"""
                 SELECT COUNT(*) as expired_sla_count
                 FROM orders o
                 JOIN stores s ON o.to_store_id = s.store_id
                 JOIN products p ON o.product_id = p.product_id
-                {sla_condition}
-            """,
-                sla_params,
-            )
+                WHERE 1=1 {sla_condition_str}
+            """
 
+            cursor.execute(sla_query, sla_params)
             expired_sla_result = cursor.fetchone()
             expired_sla_count = (
                 expired_sla_result["expired_sla_count"] if expired_sla_result else 0
@@ -439,9 +469,7 @@ async def get_order_status_summary(
                 "status_counts": status_counts,
                 "expired_sla_count": expired_sla_count,
                 "total_cases": total_cases,
-                "summary_period": (
-                    f"As of {as_of_date}" if as_of_date else "Last 30 days"
-                ),
+                "summary_period": summary_period,
             }
 
     except Exception as e:

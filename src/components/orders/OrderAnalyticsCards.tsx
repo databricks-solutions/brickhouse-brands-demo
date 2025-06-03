@@ -4,6 +4,7 @@ import { Clock, AlertTriangle, CheckCircle, Package, Loader2 } from "lucide-reac
 import { useOrderStore } from "@/store/useOrderStore";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
 import { useDateStore } from "@/store/useDateStore";
+import { useDateFilterStore } from "@/store/useDateFilterStore";
 
 type FilterType = 'pending_review' | 'expired_sla' | 'approved' | 'fulfilled' | null;
 
@@ -20,54 +21,58 @@ export const OrderAnalyticsCards = () => {
     } = useOrderStore();
     const { isDarkMode } = useDarkModeStore();
     const { isDateConfigured, configuredDate, resetCounter } = useDateStore();
+    const { dateFrom: sharedDateFrom, dateTo: sharedDateTo } = useDateFilterStore(); // Get shared date filters
     const [activeFilter, setActiveFilter] = useState<FilterType>(null);
 
     // Track previous date configuration to detect changes
     const prevDateConfig = useRef({ isDateConfigured, configuredDate, resetCounter });
 
-    // Auto-refresh when date configuration changes
+    // Listen for date configuration changes
     useEffect(() => {
         const currentDateConfig = { isDateConfigured, configuredDate, resetCounter };
-        const prev = prevDateConfig.current;
 
-        // Check if date configuration has changed
-        const dateConfigChanged =
-            prev.isDateConfigured !== currentDateConfig.isDateConfigured ||
-            (prev.configuredDate && currentDateConfig.configuredDate &&
-                prev.configuredDate.getTime() !== currentDateConfig.configuredDate?.getTime()) ||
-            (!prev.configuredDate && currentDateConfig.configuredDate) ||
-            (prev.configuredDate && !currentDateConfig.configuredDate) ||
-            prev.resetCounter !== currentDateConfig.resetCounter; // Add reset counter check
+        // Only trigger if there's an actual change
+        if (prevDateConfig.current) {
+            const hasChanged =
+                prevDateConfig.current.isDateConfigured !== currentDateConfig.isDateConfigured ||
+                prevDateConfig.current.configuredDate !== currentDateConfig.configuredDate ||
+                prevDateConfig.current.resetCounter !== currentDateConfig.resetCounter;
 
-        if (dateConfigChanged) {
-            console.log('Date configuration changed, refreshing status summary...');
-
-            // If reset counter changed, this means date was reset to real-time
-            // OrderAnalyticsCards should refresh FIRST before OrdersTable
-            if (prev.resetCounter !== currentDateConfig.resetCounter) {
-                console.log('Date was reset to real-time, refreshing analytics first...');
-                // Shorter delay to ensure analytics load first
-                setTimeout(() => {
-                    fetchOrderStatusSummary(filters.region, filters.category);
-                }, 50);
-            } else {
-                // Normal date change, refresh immediately
-                fetchOrderStatusSummary(filters.region, filters.category);
+            if (hasChanged) {
+                // If reset counter changed, this means date was reset to real-time
+                // OrderAnalyticsCards should refresh FIRST before OrdersTable
+                if (prevDateConfig.current.resetCounter !== currentDateConfig.resetCounter) {
+                    // Shorter delay to ensure analytics load first
+                    setTimeout(() => {
+                        fetchOrderStatusSummary(filters);
+                    }, 50);
+                } else {
+                    // Normal date change, refresh immediately
+                    fetchOrderStatusSummary(filters);
+                }
             }
         }
 
         // Update the ref for next comparison
         prevDateConfig.current = currentDateConfig;
-    }, [isDateConfigured, configuredDate, resetCounter, fetchOrderStatusSummary, filters.region, filters.category]);
+    }, [isDateConfigured, configuredDate, resetCounter, fetchOrderStatusSummary, filters.region, filters.category, filters.dateFrom, filters.dateTo]);
 
-    // Initial loading when component mounts
+    // Initial loading when component mounts - wait for date filters to be synced
     useEffect(() => {
-        // Only load if we don't have status summary data and aren't currently loading
-        if (!statusSummary && !isLoadingStatusSummary && !isBatchLoading) {
-            console.log('OrderAnalyticsCards: Initial load on mount');
-            fetchOrderStatusSummary(filters.region, filters.category);
+        // Only load if:
+        // 1. We don't have status summary data and aren't currently loading
+        // 2. Date filters are properly synced (filters.dateFrom and filters.dateTo should match shared store OR both be undefined for "All Time")
+        const hasValidDateFilters =
+            (filters.dateFrom && filters.dateTo) || // Has date filters
+            (!sharedDateFrom && !sharedDateTo); // OR shared store is "All Time" (no date filters)
+
+        const isDateFilterSynced =
+            filters.dateFrom === sharedDateFrom && filters.dateTo === sharedDateTo;
+
+        if (!statusSummary && !isLoadingStatusSummary && !isBatchLoading && hasValidDateFilters && isDateFilterSynced) {
+            fetchOrderStatusSummary(filters);
         }
-    }, [statusSummary, isLoadingStatusSummary, isBatchLoading, fetchOrderStatusSummary, filters.region, filters.category]);
+    }, [statusSummary, isLoadingStatusSummary, isBatchLoading, fetchOrderStatusSummary, filters.region, filters.category, filters.dateFrom, filters.dateTo, sharedDateFrom, sharedDateTo]);
 
     // Set initial active filter based on current order store state
     useEffect(() => {
@@ -97,17 +102,16 @@ export const OrderAnalyticsCards = () => {
 
     const handleCardClick = (filterType: FilterType) => {
         if (activeFilter === filterType) {
-            // Clicking the same card - remove filter but preserve other filters
+            // Clicking the same card - remove filter but preserve other filters including date filters
             setActiveFilter(null);
             setFilters({
                 ...filters,
                 status: 'all',
-                expiredSlaOnly: false,
-                dateFrom: undefined,
-                dateTo: undefined
+                expiredSlaOnly: false
+                // Remove dateFrom/dateTo reset to preserve date filter state
             });
         } else {
-            // Clicking a different card - apply filter but preserve other filters
+            // Clicking a different card - apply filter but preserve other filters including date filters
             setActiveFilter(filterType);
 
             if (filterType === 'expired_sla') {

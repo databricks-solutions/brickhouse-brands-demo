@@ -1,16 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { RecentOrders } from "@/components/orders/RecentOrders";
 import { Insights } from "@/components/dashboard/Insights";
 import { Navigation } from "@/components/layout/Navigation";
+import { DateFilter } from "@/components/filters/DateFilter";
 import { useStoreStore } from "@/store/useStoreStore";
 import { useProductStore } from "@/store/useProductStore";
 import { useInventoryStore } from "@/store/useInventoryStore";
 import { useOrderStore } from "@/store/useOrderStore";
 import { useUserStore } from "@/store/useUserStore";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
+import { useDateFilterStore } from "@/store/useDateFilterStore";
 
 const Index = () => {
   const [selectedLocation, setSelectedLocation] = useState("all");
@@ -27,13 +29,16 @@ const Index = () => {
   const { filters: inventoryFilters, setFilters: setInventoryFilters, fetchKPIData, fetchChartData } = useInventoryStore();
 
   // Get order filters and update functions for centralized order management
-  const { setFilters: setOrderFilters } = useOrderStore();
+  const { filters: orderFilters, setFilters: setOrderFilters } = useOrderStore();
 
   // Get user store for initialization
   const { initializeCurrentUser, initializeCurrentRegionalManager } = useUserStore();
 
   // Get dark mode state
   const { isDarkMode } = useDarkModeStore();
+
+  // Get shared date filter state
+  const { dateFrom, dateTo } = useDateFilterStore();
 
   // Initialize current user on mount
   useEffect(() => {
@@ -52,13 +57,66 @@ const Index = () => {
     fetchCategoryOptions();
   }, [fetchStores, fetchRegionOptions, fetchCategoryOptions]);
 
-  // Update filters when region/category changes
+  // Sync shared date filter to both stores (consolidated single effect)
+  useEffect(() => {
+    // Get current filter states to avoid closure issues
+    const currentOrderFilters = useOrderStore.getState().filters;
+    const currentInventoryFilters = useInventoryStore.getState().filters;
+
+    // Check if the date filters in the stores need to be updated
+    const orderFiltersNeedUpdate = 
+      currentOrderFilters.dateFrom !== dateFrom || currentOrderFilters.dateTo !== dateTo;
+    const inventoryFiltersNeedUpdate = 
+      currentInventoryFilters.dateFrom !== dateFrom || currentInventoryFilters.dateTo !== dateTo;
+
+    // Sync to order store if needed (handles both set dates and cleared dates)
+    if (orderFiltersNeedUpdate) {
+      setOrderFilters({
+        ...currentOrderFilters,
+        dateFrom,
+        dateTo,
+      });
+    }
+
+    // Sync to inventory store if needed (handles both set dates and cleared dates)  
+    if (inventoryFiltersNeedUpdate) {
+      setInventoryFilters({
+        ...currentInventoryFilters,
+        dateFrom,
+        dateTo,
+      });
+    }
+  }, [dateFrom, dateTo, setOrderFilters, setInventoryFilters]);
+
+  // Handle data fetching when date filters change (for insights tab)
+  useEffect(() => {
+    if (activeTab === 'insights') {
+      const currentFilters = {
+        ...inventoryFilters,
+        dateFrom,
+        dateTo,
+      };
+
+      // Fetch both KPI and chart data with updated filters
+      Promise.all([
+        fetchKPIData(currentFilters),
+        fetchChartData(currentFilters)
+      ]);
+    }
+  }, [dateFrom, dateTo, activeTab]);
+
+  // Update filters when region/category changes (but NOT when date filters change)
   useEffect(() => {
     if (activeTab === 'order-management') {
       // For order management, use centralized order store
+      // Get current filters from store to avoid closure issues and preserve date filters
+      const currentOrderFilters = useOrderStore.getState().filters;
+
       setOrderFilters({
+        ...currentOrderFilters, // Use current state from store, not closure variable
         region: selectedLocation === "all" ? "all" : selectedLocation,
         category: selectedCategory === "all" ? "all" : selectedCategory,
+        // Date filters are preserved from currentOrderFilters
       });
     } else {
       // For insights, use inventory store (for KPI data)
@@ -66,6 +124,7 @@ const Index = () => {
         ...inventoryFilters,
         region: selectedLocation === "all" ? "all" : selectedLocation,
         category: selectedCategory === "all" ? "all" : selectedCategory,
+        // Don't set date filters here - they're managed by the separate effect above
       };
 
       setInventoryFilters(currentFilters);
@@ -76,7 +135,7 @@ const Index = () => {
         fetchChartData(currentFilters)
       ]);
     }
-  }, [selectedLocation, selectedCategory, activeTab, setOrderFilters, setInventoryFilters, fetchKPIData, fetchChartData]);
+  }, [selectedLocation, selectedCategory, activeTab]); // Removed dateFrom, dateTo from dependencies
 
   // Build category options from real product data
   const categoryDropdownOptions = [
@@ -182,6 +241,9 @@ const Index = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Date Filter */}
+              <DateFilter activeTab={activeTab} />
             </div>
           </CardContent>
         </Card>
