@@ -7,7 +7,11 @@ import {
   User,
   Store,
   Product,
-  OrderCreate
+  OrderCreate,
+  FulfillmentTimelineData,
+  RegionalPerformanceData,
+  OrderStatusDistributionData,
+  DemandForecastData
 } from '../types';
 import { AxiosError, AxiosResponse } from 'axios';
 import { useDateStore } from '@/store/useDateStore';
@@ -520,6 +524,101 @@ export class OrderService {
       }
 
       const response = await apiClient.get(`/orders/status/summary?${params}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(handleApiError(error as AxiosError));
+    }
+  }
+
+  // Operational Efficiency Analytics Methods
+  static async getFulfillmentTimeline(
+    days: number = 30,
+    region?: string,
+    dateFrom?: string,
+    dateTo?: string
+  ): Promise<FulfillmentTimelineData[]> {
+    try {
+      const params = new URLSearchParams();
+
+      if (dateFrom && dateTo) {
+        params.append('date_from', dateFrom);
+        params.append('date_to', dateTo);
+      } else {
+        params.append('days', days.toString());
+      }
+
+      if (region && region !== 'all') {
+        params.append('region', region);
+      }
+
+      const response = await apiClient.get(`/orders/analytics/fulfillment-timeline?${params}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(handleApiError(error as AxiosError));
+    }
+  }
+
+  static async getRegionalPerformance(
+    dateFrom?: string,
+    dateTo?: string
+  ): Promise<RegionalPerformanceData[]> {
+    try {
+      const params = new URLSearchParams();
+
+      if (dateFrom && dateTo) {
+        params.append('date_from', dateFrom);
+        params.append('date_to', dateTo);
+      }
+
+      const response = await apiClient.get(`/orders/analytics/regional-performance?${params}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(handleApiError(error as AxiosError));
+    }
+  }
+
+  static async getOrderStatusDistribution(
+    days: number = 30,
+    region?: string,
+    dateFrom?: string,
+    dateTo?: string
+  ): Promise<OrderStatusDistributionData[]> {
+    try {
+      const params = new URLSearchParams();
+
+      if (dateFrom && dateTo) {
+        params.append('date_from', dateFrom);
+        params.append('date_to', dateTo);
+      } else {
+        params.append('days', days.toString());
+      }
+
+      if (region && region !== 'all') {
+        params.append('region', region);
+      }
+
+      const response = await apiClient.get(`/orders/analytics/status-distribution?${params}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(handleApiError(error as AxiosError));
+    }
+  }
+
+  static async getDemandForecast(
+    daysBack: number = 90,
+    daysForward: number = 30,
+    region?: string
+  ): Promise<DemandForecastData[]> {
+    try {
+      const params = new URLSearchParams();
+      params.append('days_back', daysBack.toString());
+      params.append('days_forward', daysForward.toString());
+
+      if (region && region !== 'all') {
+        params.append('region', region);
+      }
+
+      const response = await apiClient.get(`/orders/analytics/demand-forecast?${params}`);
       return response.data;
     } catch (error) {
       throw new Error(handleApiError(error as AxiosError));

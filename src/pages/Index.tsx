@@ -13,11 +13,14 @@ import { useOrderStore } from "@/store/useOrderStore";
 import { useUserStore } from "@/store/useUserStore";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
 import { useDateFilterStore } from "@/store/useDateFilterStore";
+import { useUIStore } from "@/store/useUIStore";
 
 const Index = () => {
   const [selectedLocation, setSelectedLocation] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [activeTab, setActiveTab] = useState<'order-management' | 'insights'>('order-management');
+
+  // Get persisted tab state from UI store
+  const { activeTab, setActiveTab } = useUIStore();
 
   // Get stores and regions from Zustand
   const { stores, regionOptions, isLoading: isLoadingStores, fetchStores, fetchRegionOptions } = useStoreStore();
@@ -64,9 +67,9 @@ const Index = () => {
     const currentInventoryFilters = useInventoryStore.getState().filters;
 
     // Check if the date filters in the stores need to be updated
-    const orderFiltersNeedUpdate = 
+    const orderFiltersNeedUpdate =
       currentOrderFilters.dateFrom !== dateFrom || currentOrderFilters.dateTo !== dateTo;
-    const inventoryFiltersNeedUpdate = 
+    const inventoryFiltersNeedUpdate =
       currentInventoryFilters.dateFrom !== dateFrom || currentInventoryFilters.dateTo !== dateTo;
 
     // Sync to order store if needed (handles both set dates and cleared dates)

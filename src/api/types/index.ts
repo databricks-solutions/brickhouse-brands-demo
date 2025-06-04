@@ -279,6 +279,32 @@ export interface LowStockAlert {
   stockStatus: 'CRITICAL' | 'LOW' | 'NORMAL';
 }
 
+// Operational Efficiency Analytics types
+export interface FulfillmentTimelineData {
+  region: string;
+  date: string;
+  avg_fulfillment_hours: number;
+  order_count: number;
+}
+
+export interface RegionalPerformanceData {
+  region: string;
+  total_orders: number;
+  fulfilled_orders: number;
+  pending_orders: number;
+  approved_orders: number;
+  cancelled_orders: number;
+  avg_fulfillment_hours: number;
+  fulfillment_rate: number;
+}
+
+export interface OrderStatusDistributionData {
+  status: string;
+  count: number;
+  percentage: number;
+  total_value: number;
+}
+
 export interface OrderCreate {
   order_number?: string;
   from_store_id?: number | null;
@@ -288,4 +314,14 @@ export interface OrderCreate {
   requested_by: number;
   notes?: string;
   order_date?: string; // For demo purposes - allow custom order dates
+}
+
+// Demand Forecasting types
+export interface DemandForecastData {
+  date: string;
+  order_count: number;
+  total_cases: number;
+  total_value: number;
+  avg_order_size: number;
+  is_forecast: boolean;
 } 

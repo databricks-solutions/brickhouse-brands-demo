@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   XAxis,
@@ -13,22 +13,76 @@ import {
   Cell,
   LineChart,
   Line,
-  Legend
+  Legend,
+  BarChart,
+  Bar,
+  ReferenceLine
 } from "recharts";
 import { Loader2 } from "lucide-react";
 import { useInventoryStore } from "@/store/useInventoryStore";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
+import { useDateFilterStore } from "@/store/useDateFilterStore";
+import { OrderService } from "@/api/services/orderService";
+import {
+  FulfillmentTimelineData,
+  RegionalPerformanceData,
+  OrderStatusDistributionData,
+  DemandForecastData
+} from "@/api/types";
 
 export const InventoryCharts = () => {
   const { chartData, fetchChartData, error } = useInventoryStore();
   const { isDarkMode } = useDarkModeStore();
+  const { dateFrom, dateTo, hasDateFilter } = useDateFilterStore();
+
+  // Operational efficiency data state
+  const [fulfillmentTimeline, setFulfillmentTimeline] = useState<FulfillmentTimelineData[]>([]);
+  const [regionalPerformance, setRegionalPerformance] = useState<RegionalPerformanceData[]>([]);
+  const [statusDistribution, setStatusDistribution] = useState<OrderStatusDistributionData[]>([]);
+  const [demandForecast, setDemandForecast] = useState<DemandForecastData[]>([]);
+  const [isLoadingOperational, setIsLoadingOperational] = useState(false);
+  const [operationalError, setOperationalError] = useState<string | null>(null);
 
   useEffect(() => {
     // Fetch chart data when component mounts if not already loaded
     if (chartData.trends.length === 0 && !chartData.isLoading) {
       fetchChartData();
     }
-  }, [fetchChartData, chartData.trends.length, chartData.isLoading]);
+
+    // Fetch operational efficiency data when date filter changes
+    fetchOperationalData();
+  }, [fetchChartData, chartData.trends.length, chartData.isLoading, dateFrom, dateTo]);
+
+  const fetchOperationalData = async () => {
+    setIsLoadingOperational(true);
+    setOperationalError(null);
+
+    try {
+      // Use actual date range if available, otherwise default to 30 days
+      const [timelineData, performanceData, distributionData, forecastData] = await Promise.all([
+        dateFrom && dateTo
+          ? OrderService.getFulfillmentTimeline(30, undefined, dateFrom, dateTo)
+          : OrderService.getFulfillmentTimeline(30),
+        dateFrom && dateTo
+          ? OrderService.getRegionalPerformance(dateFrom, dateTo)
+          : OrderService.getRegionalPerformance(),
+        dateFrom && dateTo
+          ? OrderService.getOrderStatusDistribution(30, undefined, dateFrom, dateTo)
+          : OrderService.getOrderStatusDistribution(30),
+        // Demand forecast - always use default parameters for now
+        OrderService.getDemandForecast(90, 30)
+      ]);
+
+      setFulfillmentTimeline(timelineData);
+      setRegionalPerformance(performanceData);
+      setStatusDistribution(distributionData);
+      setDemandForecast(forecastData);
+    } catch (error) {
+      setOperationalError(`Failed to load operational data: ${error}`);
+    } finally {
+      setIsLoadingOperational(false);
+    }
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -44,16 +98,25 @@ export const InventoryCharts = () => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
+  // Helper function to get date range display text
+  const getDateRangeText = () => {
+    if (hasDateFilter() && dateFrom && dateTo) {
+      const from = new Date(dateFrom);
+      const to = new Date(dateTo);
+      return `${from.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${to.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    }
+    return "Last 30 Days";
+  };
+
+  // Colors for charts (adapted for dark/light mode) - Define early to avoid initialization error
+  const COLORS = isDarkMode
+    ? ['#60a5fa', '#34d399', '#fbbf24', '#fb7185', '#a78bfa', '#22d3ee', '#a3e635', '#fb923c']
+    : ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'];
+
   // Transform trends data for the chart (last 30 days)
   const inventoryValueData = chartData.trends.map(trend => ({
     date: formatDateString(trend.date),
     value: trend.total_value
-  }));
-
-  // Generate mock turnover data since we don't have order/sales data yet
-  const turnoverData = chartData.trends.slice(-6).map((trend, index) => ({
-    date: formatDateString(trend.date),
-    days: 40 + Math.random() * 10 // Mock turnover days between 40-50
   }));
 
   // Category distribution for pie chart
@@ -63,10 +126,32 @@ export const InventoryCharts = () => {
     percentage: cat.percentage
   }));
 
-  // Colors for pie chart (adapted for dark/light mode)
-  const COLORS = isDarkMode
-    ? ['#60a5fa', '#34d399', '#fbbf24', '#fb7185', '#a78bfa', '#22d3ee', '#a3e635', '#fb923c']
-    : ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'];
+  // Transform fulfillment timeline data for chart - respect date range
+  const fulfillmentChartData = fulfillmentTimeline
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .map(item => ({
+      date: formatDateString(item.date),
+      hours: Math.round(item.avg_fulfillment_hours * 10) / 10,
+      orders: item.order_count
+    }));
+
+  // Transform status distribution data for vertical bar chart with colors
+  const statusChartData = statusDistribution.map((item, index) => ({
+    status: item.status.replace('_', ' ').toUpperCase(),
+    count: item.count,
+    percentage: item.percentage,
+    fill: COLORS[index % COLORS.length]
+  }));
+
+  // Transform regional performance data with colors
+  const regionalChartData = regionalPerformance
+    .sort((a, b) => b.fulfillment_rate - a.fulfillment_rate) // Sort by fulfillment rate descending
+    .map((item, index) => ({
+      region: item.region,
+      fulfillment_rate: item.fulfillment_rate,
+      total_orders: item.total_orders,
+      fulfilled_orders: item.fulfilled_orders
+    }));
 
   // Chart theme based on dark mode
   const chartTheme = {
@@ -79,19 +164,55 @@ export const InventoryCharts = () => {
     }
   };
 
+  // Transform demand forecast data for chart display
+  const historicalData = demandForecast.filter(item => !item.is_forecast);
+  const forecastData = demandForecast.filter(item => item.is_forecast);
+
+  // Combine data for display but keep track of forecast boundary
+  const demandChartData = [...historicalData, ...forecastData];
+
+  // Calculate trend line data (simple linear regression on order_count)
+  const calculateTrendLine = () => {
+    if (demandChartData.length < 2) return [];
+
+    const allData = demandChartData.map((item, index) => ({
+      x: index,
+      y: item.order_count,
+      date: item.date
+    }));
+
+    // Simple linear regression
+    const n = allData.length;
+    const sumX = allData.reduce((sum, item) => sum + item.x, 0);
+    const sumY = allData.reduce((sum, item) => sum + item.y, 0);
+    const sumXY = allData.reduce((sum, item) => sum + item.x * item.y, 0);
+    const sumXX = allData.reduce((sum, item) => sum + item.x * item.x, 0);
+
+    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / n;
+
+    return allData.map(item => ({
+      date: item.date,
+      trend_orders: Math.max(0, slope * item.x + intercept),
+      is_forecast: demandForecast.find(d => d.date === item.date)?.is_forecast || false
+    }));
+  };
+
+  const trendLineData = calculateTrendLine();
+
+  // Get current date for reference line
+  const currentDate = new Date().toISOString().split('T')[0];
+
   // Loading state
-  if (chartData.isLoading) {
+  if (chartData.isLoading || isLoadingOperational) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {[1, 2, 3].map((index) => (
-          <Card key={index} className={`col-span-1 lg:col-span-2 ${isDarkMode ? 'bg-gray-800 border-gray-700' : ''
-            }`}>
+        {[1, 2, 3, 4].map((index) => (
+          <Card key={index} className={`${index === 1 ? 'col-span-1 lg:col-span-2' : ''} ${isDarkMode ? 'bg-gray-800 border-gray-700' : ''}`}>
             <CardContent className="pt-6">
               <div className="flex items-center justify-center h-[300px]">
-                <Loader2 className={`h-8 w-8 animate-spin ${isDarkMode ? 'text-gray-400' : 'text-gray-400'
-                  }`} />
-                <span className={`ml-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                  }`}>Loading chart data...</span>
+                <Loader2 className={`h-8 w-8 animate-spin ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
+                <span className={`ml-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Loading chart data...</span>
               </div>
             </CardContent>
           </Card>
@@ -101,17 +222,16 @@ export const InventoryCharts = () => {
   }
 
   // Error state
-  if (error) {
+  if (error || operationalError) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className={`col-span-full ${isDarkMode ? 'bg-gray-800 border-gray-700' : ''
-          }`}>
+        <Card className={`col-span-full ${isDarkMode ? 'bg-gray-800 border-gray-700' : ''}`}>
           <CardContent className="pt-6">
-            <div className={`text-center ${isDarkMode ? 'text-red-400' : 'text-red-600'
-              }`}>
+            <div className={`text-center ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
               <p className="font-medium">Error loading chart data</p>
-              <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>{error}</p>
+              <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                {error || operationalError}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -121,18 +241,20 @@ export const InventoryCharts = () => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Inventory Value Over Time */}
-      <Card className={`col-span-1 lg:col-span-2 ${isDarkMode ? 'bg-gray-800 border-gray-700' : ''
-        }`}>
+      {/* Demand Forecasting */}
+      <Card className={`col-span-1 lg:col-span-2 ${isDarkMode ? 'bg-gray-800 border-gray-700' : ''}`}>
         <CardHeader>
           <CardTitle className={isDarkMode ? 'text-white' : ''}>
-            Inventory Value Trends (Last 30 Days)
+            Demand Forecasting - Order Volume Trends & Predictions
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            {inventoryValueData.length > 0 ? (
-              <LineChart data={inventoryValueData}>
+          <ResponsiveContainer width="100%" height={400}>
+            {demandForecast.length > 0 ? (
+              <LineChart
+                data={demandChartData}
+                margin={{ top: 20, right: 100, left: 20, bottom: 20 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} />
                 <XAxis
                   dataKey="date"
@@ -141,13 +263,61 @@ export const InventoryCharts = () => {
                   tickLine={{ stroke: chartTheme.grid }}
                 />
                 <YAxis
-                  tickFormatter={formatCurrency}
+                  yAxisId="orders"
                   tick={{ fill: chartTheme.text, fontSize: 12 }}
                   axisLine={{ stroke: chartTheme.grid }}
                   tickLine={{ stroke: chartTheme.grid }}
+                  label={{
+                    value: 'Orders per Day',
+                    angle: -90,
+                    position: 'insideLeft',
+                    style: { textAnchor: 'middle', fill: chartTheme.text }
+                  }}
                 />
+                <YAxis
+                  yAxisId="value"
+                  orientation="right"
+                  tick={{ fill: chartTheme.text, fontSize: 12 }}
+                  axisLine={{ stroke: chartTheme.grid }}
+                  tickLine={{ stroke: chartTheme.grid }}
+                  tickFormatter={formatCurrency}
+                  width={90}
+                  label={{
+                    value: 'Total Value',
+                    angle: 90,
+                    position: 'outside',
+                    offset: 20,
+                    dx: 40,
+                    style: { textAnchor: 'middle', fill: chartTheme.text }
+                  }}
+                />
+
+                {/* Vertical line at current date */}
+                <ReferenceLine
+                  x={currentDate}
+                  yAxisId="orders"
+                  stroke={isDarkMode ? '#ef4444' : '#dc2626'}
+                  strokeWidth={2}
+                  strokeDasharray="4 4"
+                  label={{
+                    value: "Today",
+                    position: "top",
+                    style: { fill: isDarkMode ? '#ef4444' : '#dc2626', fontSize: '12px' }
+                  }}
+                />
+
                 <Tooltip
-                  formatter={(value) => [formatCurrency(Number(value)), "Inventory Value"]}
+                  formatter={(value, name) => {
+                    if (name === 'order_count') return [value, 'Orders'];
+                    if (name === 'total_value') return [formatCurrency(Number(value)), 'Total Value'];
+                    if (name === 'trend_orders') return [Math.round(Number(value)), 'Trend Line'];
+                    return [value, name];
+                  }}
+                  labelFormatter={(label, payload) => {
+                    const dataPoint = payload?.[0]?.payload;
+                    const forecastText = dataPoint?.is_forecast ? ' (Forecast)' : ' (Historical)';
+                    return `${formatDateString(label)}${forecastText}`;
+                  }}
                   contentStyle={{
                     backgroundColor: chartTheme.tooltip.background,
                     border: `1px solid ${chartTheme.tooltip.border}`,
@@ -155,21 +325,144 @@ export const InventoryCharts = () => {
                     color: chartTheme.tooltip.text
                   }}
                 />
+
+                {/* Historical Order Count Line */}
                 <Line
+                  yAxisId="orders"
                   type="monotone"
-                  dataKey="value"
+                  dataKey="order_count"
                   stroke={isDarkMode ? '#60a5fa' : '#3b82f6'}
                   strokeWidth={2}
-                  dot={{ fill: isDarkMode ? '#60a5fa' : '#3b82f6', strokeWidth: 2 }}
+                  dot={(props) => {
+                    const isHistorical = !props.payload?.is_forecast;
+                    const isForecast = props.payload?.is_forecast;
+                    return (
+                      <circle
+                        cx={props.cx}
+                        cy={props.cy}
+                        r={isHistorical ? 3 : 2}
+                        fill={isHistorical
+                          ? (isDarkMode ? '#60a5fa' : '#3b82f6')
+                          : (isDarkMode ? '#93c5fd' : '#60a5fa')
+                        }
+                        stroke={isHistorical
+                          ? (isDarkMode ? '#60a5fa' : '#3b82f6')
+                          : (isDarkMode ? '#93c5fd' : '#60a5fa')
+                        }
+                        strokeWidth={2}
+                        opacity={isForecast ? 0.7 : 1}
+                      />
+                    );
+                  }}
+                  connectNulls={false}
                 />
+
+                {/* Forecast Order Count Line (separate line for different styling) */}
+                <Line
+                  yAxisId="orders"
+                  type="monotone"
+                  dataKey={(entry) => entry.is_forecast ? entry.order_count : null}
+                  stroke={isDarkMode ? '#93c5fd' : '#60a5fa'}
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  dot={false}
+                  connectNulls={false}
+                />
+
+                {/* Historical Revenue Line */}
+                <Line
+                  yAxisId="value"
+                  type="monotone"
+                  dataKey="total_value"
+                  stroke={isDarkMode ? '#34d399' : '#10b981'}
+                  strokeWidth={2}
+                  dot={(props) => {
+                    const isHistorical = !props.payload?.is_forecast;
+                    const isForecast = props.payload?.is_forecast;
+                    return (
+                      <circle
+                        cx={props.cx}
+                        cy={props.cy}
+                        r={isHistorical ? 3 : 2}
+                        fill={isHistorical
+                          ? (isDarkMode ? '#34d399' : '#10b981')
+                          : (isDarkMode ? '#86efac' : '#34d399')
+                        }
+                        stroke={isHistorical
+                          ? (isDarkMode ? '#34d399' : '#10b981')
+                          : (isDarkMode ? '#86efac' : '#34d399')
+                        }
+                        strokeWidth={2}
+                        opacity={isForecast ? 0.7 : 1}
+                      />
+                    );
+                  }}
+                  connectNulls={false}
+                />
+
+                {/* Forecast Revenue Line */}
+                <Line
+                  yAxisId="value"
+                  type="monotone"
+                  dataKey={(entry) => entry.is_forecast ? entry.total_value : null}
+                  stroke={isDarkMode ? '#86efac' : '#34d399'}
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  dot={false}
+                  connectNulls={false}
+                />
+
+                {/* Trend Line for Orders */}
+                {trendLineData.length > 0 && (
+                  <Line
+                    yAxisId="orders"
+                    type="monotone"
+                    data={trendLineData}
+                    dataKey="trend_orders"
+                    stroke={isDarkMode ? '#fbbf24' : '#f59e0b'}
+                    strokeWidth={1}
+                    strokeDasharray="2 2"
+                    dot={false}
+                    connectNulls={true}
+                  />
+                )}
               </LineChart>
             ) : (
-              <div className={`flex items-center justify-center h-full ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>
-                No trend data available
+              <div className={`flex items-center justify-center h-full ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                No forecast data available
               </div>
             )}
           </ResponsiveContainer>
+
+          {/* Custom Legend */}
+          <div className="mt-2 flex justify-center">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm max-w-4xl">
+              <div className="flex items-center space-x-2">
+                <div className={`w-4 h-0.5 ${isDarkMode ? 'bg-blue-400' : 'bg-blue-600'}`}></div>
+                <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Historical Orders</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className={`w-4 h-0.5 ${isDarkMode ? 'bg-blue-300' : 'bg-blue-400'} opacity-70`} style={{ borderTop: '2px dashed' }}></div>
+                <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Forecast Orders</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className={`w-4 h-0.5 ${isDarkMode ? 'bg-green-400' : 'bg-green-600'}`}></div>
+                <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Historical Revenue</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className={`w-4 h-0.5 ${isDarkMode ? 'bg-green-300' : 'bg-green-400'} opacity-70`} style={{ borderTop: '2px dashed' }}></div>
+                <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Forecast Revenue</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className={`w-4 h-0.5 ${isDarkMode ? 'bg-yellow-400' : 'bg-yellow-600'}`} style={{ borderTop: '1px dashed' }}></div>
+                <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Trend Line</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className={`w-4 h-0.5 ${isDarkMode ? 'bg-red-400' : 'bg-red-600'}`} style={{ borderTop: '2px dashed' }}></div>
+                <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Today</span>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -221,8 +514,7 @@ export const InventoryCharts = () => {
                 />
               </PieChart>
             ) : (
-              <div className={`flex items-center justify-center h-full ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>
+              <div className={`flex items-center justify-center h-full ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 No category data available
               </div>
             )}
@@ -230,17 +522,17 @@ export const InventoryCharts = () => {
         </CardContent>
       </Card>
 
-      {/* Turnover Trends */}
+      {/* Fulfillment Timeline */}
       <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
         <CardHeader>
           <CardTitle className={isDarkMode ? 'text-white' : ''}>
-            Recent Activity Trends
+            Fulfillment Timeline ({getDateRangeText()})
           </CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            {turnoverData.length > 0 ? (
-              <AreaChart data={turnoverData}>
+            {fulfillmentChartData.length > 0 ? (
+              <AreaChart data={fulfillmentChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} />
                 <XAxis
                   dataKey="date"
@@ -249,12 +541,19 @@ export const InventoryCharts = () => {
                   tickLine={{ stroke: chartTheme.grid }}
                 />
                 <YAxis
+                  yAxisId="left"
+                  tick={{ fill: chartTheme.text, fontSize: 12 }}
+                  axisLine={{ stroke: chartTheme.grid }}
+                  tickLine={{ stroke: chartTheme.grid }}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
                   tick={{ fill: chartTheme.text, fontSize: 12 }}
                   axisLine={{ stroke: chartTheme.grid }}
                   tickLine={{ stroke: chartTheme.grid }}
                 />
                 <Tooltip
-                  formatter={(value) => [value, "Days"]}
                   contentStyle={{
                     backgroundColor: chartTheme.tooltip.background,
                     border: `1px solid ${chartTheme.tooltip.border}`,
@@ -263,17 +562,142 @@ export const InventoryCharts = () => {
                   }}
                 />
                 <Area
+                  yAxisId="left"
                   type="monotone"
-                  dataKey="days"
-                  stroke={isDarkMode ? '#34d399' : '#10b981'}
-                  fill={isDarkMode ? '#34d399' : '#10b981'}
+                  dataKey="hours"
+                  stroke={isDarkMode ? '#60a5fa' : '#3b82f6'}
+                  fill={isDarkMode ? '#60a5fa' : '#3b82f6'}
+                  fillOpacity={0.3}
+                />
+                <Area
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="orders"
+                  stroke={isDarkMode ? '#fbbf24' : '#f59e0b'}
+                  fill={isDarkMode ? '#fbbf24' : '#f59e0b'}
                   fillOpacity={0.3}
                 />
               </AreaChart>
             ) : (
-              <div className={`flex items-center justify-center h-full ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>
-                No activity data available
+              <div className={`flex items-center justify-center h-full ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                No fulfillment data available
+              </div>
+            )}
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Order Status Distribution */}
+      <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+        <CardHeader>
+          <CardTitle className={isDarkMode ? 'text-white' : ''}>
+            Order Status Distribution ({getDateRangeText()})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            {statusChartData.length > 0 ? (
+              <BarChart data={statusChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} />
+                <XAxis
+                  dataKey="status"
+                  tick={{ fill: chartTheme.text, fontSize: 12 }}
+                  axisLine={{ stroke: chartTheme.grid }}
+                  tickLine={{ stroke: chartTheme.grid }}
+                />
+                <YAxis
+                  tickFormatter={(value) => `${value}%`}
+                  tick={{ fill: chartTheme.text, fontSize: 12 }}
+                  axisLine={{ stroke: chartTheme.grid }}
+                  tickLine={{ stroke: chartTheme.grid }}
+                />
+                <Tooltip
+                  formatter={(value, name, props) => [
+                    `${value}% (${props.payload.count} orders)`,
+                    "Orders"
+                  ]}
+                  labelFormatter={(label) => `Status: ${label}`}
+                  contentStyle={{
+                    backgroundColor: chartTheme.tooltip.background,
+                    border: `1px solid ${chartTheme.tooltip.border}`,
+                    borderRadius: '6px',
+                    color: chartTheme.tooltip.text
+                  }}
+                />
+                <Bar dataKey="percentage" fill="#8884d8">
+                  {statusChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            ) : (
+              <div className={`flex items-center justify-center h-full ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                No status data available
+              </div>
+            )}
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Regional Performance */}
+      <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+        <CardHeader>
+          <CardTitle className={isDarkMode ? 'text-white' : ''}>
+            Regional Performance ({getDateRangeText()})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            {regionalChartData.length > 0 ? (
+              <BarChart
+                data={regionalChartData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} />
+                <XAxis
+                  dataKey="region"
+                  tick={{ fill: chartTheme.text, fontSize: 11 }}
+                  axisLine={{ stroke: chartTheme.grid }}
+                  tickLine={{ stroke: chartTheme.grid }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis
+                  domain={[0, 100]}
+                  tickFormatter={(value) => `${value}%`}
+                  tick={{ fill: chartTheme.text, fontSize: 12 }}
+                  axisLine={{ stroke: chartTheme.grid }}
+                  tickLine={{ stroke: chartTheme.grid }}
+                  label={{
+                    value: 'Fulfillment Rate (%)',
+                    angle: -90,
+                    position: 'insideLeft',
+                    style: { textAnchor: 'middle', fill: chartTheme.text }
+                  }}
+                />
+                <Tooltip
+                  formatter={(value) => [`${Number(value).toFixed(1)}%`, "Fulfillment Rate"]}
+                  labelFormatter={(label) => `Region: ${label}`}
+                  contentStyle={{
+                    backgroundColor: chartTheme.tooltip.background,
+                    border: `1px solid ${chartTheme.tooltip.border}`,
+                    borderRadius: '6px',
+                    color: chartTheme.tooltip.text
+                  }}
+                />
+                <Bar
+                  dataKey="fulfillment_rate"
+                  radius={[4, 4, 0, 0]}
+                >
+                  {regionalChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            ) : (
+              <div className={`flex items-center justify-center h-full ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                No regional data available
               </div>
             )}
           </ResponsiveContainer>
