@@ -440,65 +440,74 @@ export const PlaceOrderModal = ({ isOpen, onClose }: PlaceOrderModalProps) => {
                             <div className="text-right">
                               <div className={`font-semibold ${isDarkMode ? 'text-white' : ''
                                 }`}>${inventoryItem.unit_price}</div>
-                              <div className="flex items-center gap-2 mt-2">
-                                <Input
-                                  type="number"
-                                  min="1"
-                                  max={getMaxAddQuantity()}
-                                  defaultValue="1"
-                                  className={`w-20 h-8 text-center ${isDarkMode ? 'bg-gray-600 border-gray-500 text-white' : ''
-                                    }`}
-                                  id={`quantity-${inventoryItem.product_id}`}
-                                  onKeyDown={(e) => {
-                                    // Prevent negative signs, decimals, and 'e' (scientific notation)
-                                    if (e.key === '-' || e.key === '.' || e.key === 'e' || e.key === 'E') {
-                                      e.preventDefault();
-                                    }
-                                  }}
-                                />
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    const quantityInput = document.getElementById(`quantity-${inventoryItem.product_id}`) as HTMLInputElement;
-                                    const inputValue = parseInt(quantityInput.value) || 1;
+                              {stockInfo.level !== "Out of Stock" ? (
+                                <div className="flex items-center gap-2 mt-2">
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    max={getMaxAddQuantity()}
+                                    defaultValue="1"
+                                    className={`w-20 h-8 text-center ${isDarkMode ? 'bg-gray-600 border-gray-500 text-white' : ''
+                                      }`}
+                                    id={`quantity-${inventoryItem.product_id}`}
+                                    onKeyDown={(e) => {
+                                      // Prevent negative signs, decimals, and 'e' (scientific notation)
+                                      if (e.key === '-' || e.key === '.' || e.key === 'e' || e.key === 'E') {
+                                        e.preventDefault();
+                                      }
+                                    }}
+                                  />
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      const quantityInput = document.getElementById(`quantity-${inventoryItem.product_id}`) as HTMLInputElement;
+                                      const inputValue = parseInt(quantityInput.value) || 1;
 
-                                    // Validate quantity range
-                                    if (inputValue < 1) {
-                                      toast({
-                                        title: "Invalid quantity",
-                                        description: "Quantity must be at least 1.",
-                                        variant: "destructive"
-                                      });
+                                      // Validate quantity range
+                                      if (inputValue < 1) {
+                                        toast({
+                                          title: "Invalid quantity",
+                                          description: "Quantity must be at least 1.",
+                                          variant: "destructive"
+                                        });
+                                        quantityInput.value = "1";
+                                        return;
+                                      }
+
+                                      const maxAddQuantity = getMaxAddQuantity();
+                                      if (inputValue > maxAddQuantity) {
+                                        toast({
+                                          title: "Invalid quantity",
+                                          description: `Maximum quantity per add is ${maxAddQuantity.toLocaleString()} units.`,
+                                          variant: "destructive"
+                                        });
+                                        quantityInput.value = maxAddQuantity.toString();
+                                        return;
+                                      }
+
+                                      // Add the specified quantity at once
+                                      addToOrder(inventoryItem, inputValue);
+
+                                      // Reset input
                                       quantityInput.value = "1";
-                                      return;
-                                    }
-
-                                    const maxAddQuantity = getMaxAddQuantity();
-                                    if (inputValue > maxAddQuantity) {
-                                      toast({
-                                        title: "Invalid quantity",
-                                        description: `Maximum quantity per add is ${maxAddQuantity.toLocaleString()} units.`,
-                                        variant: "destructive"
-                                      });
-                                      quantityInput.value = maxAddQuantity.toString();
-                                      return;
-                                    }
-
-                                    // Add the specified quantity at once
-                                    addToOrder(inventoryItem, inputValue);
-
-                                    // Reset input
-                                    quantityInput.value = "1";
-                                  }}
-                                  className={`whitespace-nowrap ${isDarkMode
-                                    ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white'
-                                    : ''
-                                    }`}
-                                >
-                                  Add to Cart
-                                </Button>
-                              </div>
+                                    }}
+                                    className={`whitespace-nowrap ${isDarkMode
+                                      ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600 hover:text-white'
+                                      : ''
+                                      }`}
+                                  >
+                                    Add to Cart
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="mt-2">
+                                  <span className={`text-sm font-medium ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                                    }`}>
+                                    Currently unavailable
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </CardContent>
