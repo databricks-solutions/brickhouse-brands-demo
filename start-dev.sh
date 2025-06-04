@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Brickstore Brands - Development Startup Script
+# Brickhouse Brands - Development Startup Script
 
-echo "🚀 Starting Brickstore Brands Development Environment"
+echo "🚀 Starting Brickhouse Brands Development Environment"
 echo "=================================================="
 
 # Function to check if command exists

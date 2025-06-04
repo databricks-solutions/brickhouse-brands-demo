@@ -1,4 +1,4 @@
--- Sample data for Brickstore Brands Database
+-- Sample data for Brickhouse Brands Database
 -- This file contains sample data to populate the database for testing
 
 -- Insert sample stores

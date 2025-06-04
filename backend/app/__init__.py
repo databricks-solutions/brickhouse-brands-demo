@@ -1,1 +1,1 @@
-# FastAPI Brickstore Brands Backend
+# FastAPI Brickhouse Brands Backend

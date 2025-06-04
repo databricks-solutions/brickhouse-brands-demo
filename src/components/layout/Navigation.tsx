@@ -32,7 +32,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
     userId: (currentUser as any).user_id || currentUser.userId || 1,
     firstName: (currentUser as any).first_name || currentUser.firstName || 'John',
     lastName: (currentUser as any).last_name || currentUser.lastName || 'Doe',
-    email: currentUser.email || 'john.doe@brickstorebrands.com',
+    email: currentUser.email || 'john.doe@brickhousebrands.com',
     username: currentUser.username || 'john.doe',
     role: currentUser.role || 'store_manager' as const,
     avatarUrl: (currentUser as any).avatar_url || currentUser.avatarUrl || '', // Handle both naming conventions
@@ -41,7 +41,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
     userId: 1,
     firstName: 'John',
     lastName: 'Doe',
-    email: 'john.doe@brickstorebrands.com',
+    email: 'john.doe@brickhousebrands.com',
     username: 'john.doe',
     role: 'store_manager' as const,
     avatarUrl: '',
@@ -72,17 +72,17 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
             {/* Left section: Logo and Company Name */}
             <div className="flex items-center space-x-8">
               <div className="flex items-center space-x-3">
-                {/* Brickstore Brands Logo */}
+                {/* Brickhouse Brands Logo */}
                 <div className="w-8 h-8 flex items-center justify-center">
                   <img
-                    src="/brickstore_brands_logo_favicon.png"
-                    alt="Brickstore Brands Logo"
+                    src="/brickhouse_brands_logo_favicon.png"
+                    alt="Brickhouse Brands Logo"
                     className="w-8 h-8"
                   />
                 </div>
                 <span className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
                   }`}>
-                  Brickstore Brands
+                  Brickhouse Brands
                 </span>
               </div>
 

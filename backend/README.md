@@ -1,6 +1,6 @@
-# Brickstore Brands - FastAPI Backend
+# Brickhouse Brands - FastAPI Backend
 
-This is the backend API for the Brickstore Brands dashboard, built with FastAPI and PostgreSQL.
+This is the backend API for the Brickhouse Brands dashboard, built with FastAPI and PostgreSQL.
 
 ## Features
 

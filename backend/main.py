@@ -27,8 +27,8 @@ FRONTEND_STATIC_PATH = pathlib.Path(__file__).parent / "static"
 
 # Create FastAPI app
 app = FastAPI(
-    title="Brickstore Brands API",
-    description="Backend API for Brickstore Brands Portal - Enhanced for Databricks Apps",
+    title="Brickhouse Brands API",
+    description="Backend API for Brickhouse Brands Portal - Enhanced for Databricks Apps",
     version="1.0.0",
     redirect_slashes=False,  # Disable automatic slash redirects
 )
@@ -73,6 +73,15 @@ async def robots():
     raise HTTPException(status_code=404, detail="Robots.txt not found")
 
 
+@app.get("/brickhouse_brands_logo_favicon.png", response_class=FileResponse)
+async def brickhouse_logo():
+    """Serve Brickhouse Brands logo"""
+    logo_file = FRONTEND_STATIC_PATH / "brickhouse_brands_logo_favicon.png"
+    if logo_file.exists():
+        return FileResponse(str(logo_file))
+    raise HTTPException(status_code=404, detail="Logo not found")
+
+
 @app.get("/placeholder.svg", response_class=FileResponse)
 async def placeholder():
     """Serve placeholder.svg"""
@@ -98,7 +107,7 @@ async def startup_event():
         env_type = (
             "Databricks Apps" if app_config.is_databricks_app else "Local Development"
         )
-        log.info(f"🚀 Starting Brickstore Brands API in {env_type} mode")
+        log.info(f"🚀 Starting Brickhouse Brands API in {env_type} mode")
 
         # Initialize database connection pool
         init_connection_pool()
@@ -179,7 +188,7 @@ async def read_root():
         auth_status = bool(databricks_auth.get_service_principal_token())
 
         return {
-            "message": "Brickstore Brands API is running",
+            "message": "Brickhouse Brands API is running",
             "environment": env_type,
             "version": "1.0.0",
             "databricks_authenticated": auth_status,
