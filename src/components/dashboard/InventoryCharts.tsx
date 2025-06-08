@@ -22,6 +22,7 @@ import { Loader2 } from "lucide-react";
 import { useInventoryStore } from "@/store/useInventoryStore";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
 import { useDateFilterStore } from "@/store/useDateFilterStore";
+import { useDateStore } from "@/store/useDateStore";
 import { OrderService } from "@/api/services/orderService";
 import {
   FulfillmentTimelineData,
@@ -34,6 +35,7 @@ export const InventoryCharts = () => {
   const { chartData, fetchChartData, error } = useInventoryStore();
   const { isDarkMode } = useDarkModeStore();
   const { dateFrom, dateTo, hasDateFilter } = useDateFilterStore();
+  const { configuredDate } = useDateStore();
 
   // Operational efficiency data state
   const [fulfillmentTimeline, setFulfillmentTimeline] = useState<FulfillmentTimelineData[]>([]);
@@ -200,8 +202,11 @@ export const InventoryCharts = () => {
 
   const trendLineData = calculateTrendLine();
 
-  // Get current date for reference line
-  const currentDate = new Date().toISOString().split('T')[0];
+  // Get current date for reference line - use configured date if available, otherwise current date
+  // Use local timezone formatting to avoid UTC timezone issues
+  const currentDate = configuredDate
+    ? configuredDate.toLocaleDateString('en-CA') // YYYY-MM-DD format in local timezone
+    : new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD format in local timezone
 
   // Loading state
   if (chartData.isLoading || isLoadingOperational) {
@@ -264,6 +269,7 @@ export const InventoryCharts = () => {
                 />
                 <YAxis
                   yAxisId="orders"
+                  domain={[0, 6000]}
                   tick={{ fill: chartTheme.text, fontSize: 12 }}
                   axisLine={{ stroke: chartTheme.grid }}
                   tickLine={{ stroke: chartTheme.grid }}
@@ -277,6 +283,7 @@ export const InventoryCharts = () => {
                 <YAxis
                   yAxisId="value"
                   orientation="right"
+                  domain={[0, 5000000]}
                   tick={{ fill: chartTheme.text, fontSize: 12 }}
                   axisLine={{ stroke: chartTheme.grid }}
                   tickLine={{ stroke: chartTheme.grid }}
@@ -343,11 +350,11 @@ export const InventoryCharts = () => {
                         r={isHistorical ? 3 : 2}
                         fill={isHistorical
                           ? (isDarkMode ? '#60a5fa' : '#3b82f6')
-                          : (isDarkMode ? '#93c5fd' : '#60a5fa')
+                          : (isDarkMode ? '#fb923c' : '#f97316')
                         }
                         stroke={isHistorical
                           ? (isDarkMode ? '#60a5fa' : '#3b82f6')
-                          : (isDarkMode ? '#93c5fd' : '#60a5fa')
+                          : (isDarkMode ? '#fb923c' : '#f97316')
                         }
                         strokeWidth={2}
                         opacity={isForecast ? 0.7 : 1}
@@ -362,9 +369,8 @@ export const InventoryCharts = () => {
                   yAxisId="orders"
                   type="monotone"
                   dataKey={(entry) => entry.is_forecast ? entry.order_count : null}
-                  stroke={isDarkMode ? '#93c5fd' : '#60a5fa'}
+                  stroke={isDarkMode ? '#fb923c' : '#f97316'}
                   strokeWidth={2}
-                  strokeDasharray="5 5"
                   dot={false}
                   connectNulls={false}
                 />
@@ -386,11 +392,11 @@ export const InventoryCharts = () => {
                         r={isHistorical ? 3 : 2}
                         fill={isHistorical
                           ? (isDarkMode ? '#34d399' : '#10b981')
-                          : (isDarkMode ? '#86efac' : '#34d399')
+                          : (isDarkMode ? '#a78bfa' : '#8b5cf6')
                         }
                         stroke={isHistorical
                           ? (isDarkMode ? '#34d399' : '#10b981')
-                          : (isDarkMode ? '#86efac' : '#34d399')
+                          : (isDarkMode ? '#a78bfa' : '#8b5cf6')
                         }
                         strokeWidth={2}
                         opacity={isForecast ? 0.7 : 1}
@@ -405,9 +411,8 @@ export const InventoryCharts = () => {
                   yAxisId="value"
                   type="monotone"
                   dataKey={(entry) => entry.is_forecast ? entry.total_value : null}
-                  stroke={isDarkMode ? '#86efac' : '#34d399'}
+                  stroke={isDarkMode ? '#a78bfa' : '#8b5cf6'}
                   strokeWidth={2}
-                  strokeDasharray="5 5"
                   dot={false}
                   connectNulls={false}
                 />
@@ -442,7 +447,7 @@ export const InventoryCharts = () => {
                 <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Historical Orders</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className={`w-4 h-0.5 ${isDarkMode ? 'bg-blue-300' : 'bg-blue-400'} opacity-70`} style={{ borderTop: '2px dashed' }}></div>
+                <div className={`w-4 h-0.5 ${isDarkMode ? 'bg-orange-400' : 'bg-orange-600'}`}></div>
                 <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Forecast Orders</span>
               </div>
               <div className="flex items-center space-x-2">
@@ -450,7 +455,7 @@ export const InventoryCharts = () => {
                 <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Historical Revenue</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className={`w-4 h-0.5 ${isDarkMode ? 'bg-green-300' : 'bg-green-400'} opacity-70`} style={{ borderTop: '2px dashed' }}></div>
+                <div className={`w-4 h-0.5 ${isDarkMode ? 'bg-purple-400' : 'bg-purple-600'}`}></div>
                 <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Forecast Revenue</span>
               </div>
               <div className="flex items-center space-x-2">
