@@ -14,30 +14,34 @@ command_exists() {
 echo "📋 Checking prerequisites..."
 
 if ! command_exists node; then
-    echo "❌ Node.js is not installed. Please install Node.js 18+ and try again."
+    echo "❌ Node.js is not installed. Please run './setup-env.sh' first."
     exit 1
 fi
 
 if ! command_exists python3; then
-    echo "❌ Python 3 is not installed. Please install Python 3.8+ and try again."
+    echo "❌ Python 3 is not installed. Please run './setup-env.sh' first."
     exit 1
 fi
 
 echo "✅ Prerequisites check passed"
+
+# Check if environments are set up
+if [ ! -d "backend/venv" ] || [ ! -d "frontend/node_modules" ]; then
+    echo "⚠️  Environment not fully set up. Running setup script..."
+    ./setup-env.sh
+    if [ $? -ne 0 ]; then
+        echo "❌ Environment setup failed. Please check the errors above."
+        exit 1
+    fi
+fi
 
 # Start backend in background
 echo ""
 echo "🐍 Starting FastAPI Backend..."
 cd backend
 
-if [ ! -d "venv" ]; then
-    echo "📦 Creating Python virtual environment..."
-    python3 -m venv venv
-fi
-
-echo "🔧 Activating virtual environment and installing dependencies..."
+echo "🔧 Activating virtual environment..."
 source venv/bin/activate
-pip install -q -r requirements.txt
 
 if [ ! -f ".env" ]; then
     echo "⚠️  No .env file found. Creating from template..."
@@ -54,15 +58,13 @@ cd ..
 # Start frontend
 echo ""
 echo "⚛️  Starting React Frontend..."
-
-if [ ! -d "node_modules" ]; then
-    echo "📦 Installing npm dependencies..."
-    npm install
-fi
+cd frontend
 
 echo "🌐 Starting React development server on http://localhost:5173"
 npm run dev &
 FRONTEND_PID=$!
+
+cd ..
 
 # Wait and show status
 sleep 3
