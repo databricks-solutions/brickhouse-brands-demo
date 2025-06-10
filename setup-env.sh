@@ -2,6 +2,9 @@
 
 # Brickhouse Brands - Environment Setup Script
 
+# Ensure we're in the script's directory (project root)
+cd "$(dirname "$0")"
+
 echo "🔧 Setting up Brickhouse Brands Development Environment"
 echo "====================================================="
 
@@ -23,6 +26,15 @@ if ! command_exists python3; then
     echo "❌ Python 3 is not installed. Please install Python 3.10+ and try again."
     echo "💡 If using ASDF: asdf install python"
     exit 1
+fi
+
+if ! command_exists rustc; then
+    echo "⚠️  Rust is not installed. Traffic Simulator will be unavailable."
+    echo "💡 If using ASDF: asdf install rust"
+    echo "💡 Or install via rustup: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+    echo "✅ You can continue without Rust - it's optional for the main application"
+else
+    echo "✅ Rust compiler found"
 fi
 
 echo "✅ Prerequisites check passed"
@@ -60,6 +72,10 @@ copy_env_to_subdir() {
 # Setup Database Environment
 echo ""
 echo "🗄️  Setting up Database Environment..."
+
+# Copy centralized environment file first
+copy_env_to_subdir "database"
+
 cd database
 
 if [ ! -d "venv" ]; then
@@ -74,9 +90,6 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# Copy centralized environment file
-copy_env_to_subdir "database"
-
 echo "✅ Database environment setup complete"
 deactivate
 
@@ -85,6 +98,10 @@ cd ..
 # Setup Backend Environment
 echo ""
 echo "🐍 Setting up Backend Environment..."
+
+# Copy centralized environment file first
+copy_env_to_subdir "backend"
+
 cd backend
 
 if [ ! -d "venv" ]; then
@@ -98,11 +115,6 @@ echo "🔧 Activating virtual environment and installing dependencies..."
 source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
-
-# Copy centralized environment file
-cd ..
-copy_env_to_subdir "backend"
-cd backend
 
 echo "✅ Backend environment setup complete"
 
@@ -126,7 +138,21 @@ copy_env_to_subdir "frontend"
 
 echo "✅ Frontend environment setup complete"
 
-cd ..
+# Setup Traffic Simulator Environment
+echo ""
+echo "🦀 Setting up Traffic Simulator Environment..."
+
+# Ensure we're in the project root
+cd "$(dirname "$0")"
+
+# Copy centralized environment file
+copy_env_to_subdir "traffic-simulator"
+
+if command_exists rustc; then
+    echo "✅ Traffic Simulator environment setup complete"
+else
+    echo "⚠️  Traffic Simulator environment configured (Rust compiler needed to build)"
+fi
 
 echo ""
 echo "🎉 Environment setup completed successfully!"
@@ -135,8 +161,10 @@ echo "📄 Centralized .env file copied to all components"
 echo "🗄️  Database: Python virtual environment created in database/venv"
 echo "🐍 Backend: Python virtual environment created in backend/venv"
 echo "⚛️  Frontend: Node modules installed in frontend/node_modules"
+echo "🦀 Traffic Simulator: Environment file copied (Rust compiler: $(command_exists rustc && echo "✅ Found" || echo "⚠️  Not found"))"
 echo ""
 echo "Next steps:"
 echo "1. Edit the root .env file with your actual configuration values"
 echo "2. Run database setup (if needed): cd database && source venv/bin/activate && python demo_setup.py"
-echo "3. Run './start-dev.sh' to start the development servers" 
+echo "3. Run './start-dev.sh' to start the development servers"
+echo "4. Run traffic simulation (if Rust installed): cd traffic-simulator && ./run_simulation.sh" 

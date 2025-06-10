@@ -52,13 +52,21 @@ A comprehensive inventory management dashboard showcasing modern full-stack arch
 - Regional performance comparisons
 - Store type categorization (retail vs warehouse)
 
+### Performance Testing & Simulation
+- High-performance Rust-based traffic simulator for database load testing
+- Realistic query patterns simulating business operations (SELECT, INSERT, UPDATE)
+- Configurable concurrent connections and traffic intensity levels
+- Real-world traffic patterns: Business Hours, E-Commerce Rush, Nightly Batch processing
+- Comprehensive performance metrics: throughput, latency analysis, connection efficiency
+
 ## 🏗️ Architecture
 
-This project demonstrates a **modern three-tier architecture** with centralized configuration management:
+This project demonstrates a modern application architecture with centralized configuration management:
 
 - **Frontend**: React + TypeScript with shadcn/ui components and Vite build system
 - **Backend**: FastAPI with PostgreSQL integration and RESTful API design
 - **Database**: PostgreSQL with automated setup scripts and demo data generation
+- **Traffic Simulator**: High-performance Rust application for database load testing and performance analysis
 - **Deployment**: Databricks Apps with automated build and deployment pipeline
 
 ### Key Features
@@ -74,6 +82,7 @@ This project demonstrates a **modern three-tier architecture** with centralized 
 
 - **Node.js 18+** for frontend development
 - **Python 3.10+** for backend and database setup
+- **Rust 1.70+** for traffic simulator application (optional)
 - **PostgreSQL** database instance (16+ recommended)
 - **Databricks CLI** for production deployment to a Databricks Apps environment
 
@@ -254,6 +263,12 @@ brickhouse-brands-demo/
 ├── database/             # Database setup and management
 │   ├── demo_setup.py     # Database initialization script
 │   └── requirements.txt  # Database tool dependencies
+├── traffic-simulator/    # Rust-based database traffic simulator
+│   ├── src/              # Rust source code
+│   ├── target/           # Compiled binaries
+│   ├── Cargo.toml        # Rust dependencies
+│   ├── run_simulation.sh # Quick simulation script
+│   └── README.md         # Detailed usage instructions
 ├── setup-env.sh          # Environment setup script
 ├── start-dev.sh          # Development server startup
 ├── deploy.sh             # Production deployment script
@@ -268,6 +283,7 @@ Each component has its own focused README with specific development instructions
 - **Frontend**: See `frontend/README.md` for React development details
 - **Backend**: See `backend/README.md` for FastAPI API documentation  
 - **Database**: See `database/README.md` for schema and setup details
+- **Traffic Simulator**: See `traffic-simulator/README.md` for performance testing and simulation usage
 
 ### Local Development Commands
 
@@ -284,6 +300,9 @@ cd frontend && npm run dev
 
 # Database setup and data generation
 cd database && source venv/bin/activate && python demo_setup.py --dry-run
+
+# Traffic simulation (requires Rust and database setup)
+cd traffic-simulator && ./run_simulation.sh
 ```
 
 ## 📈 Future Considerations
@@ -361,3 +380,23 @@ All included or referenced third party libraries are subject to the licenses set
 | python-dateutil | Extensions to the standard Python datetime module | Apache-2.0 & BSD-3-Clause | https://github.com/dateutil/dateutil |
 | numpy | Fundamental package for scientific computing | BSD-3-Clause | https://github.com/numpy/numpy |
 | black | Code formatter for Python | MIT | https://github.com/psf/black |
+
+### Traffic Simulator (Rust) Dependencies
+
+| library                                | description             | license    | source                                              |
+|----------------------------------------|-------------------------|------------|-----------------------------------------------------|
+| anyhow | Flexible concrete Error type built on std::error::Error | MIT OR Apache-2.0 | https://github.com/dtolnay/anyhow |
+| chrono | Date and time library for Rust | MIT OR Apache-2.0 | https://github.com/chronotope/chrono |
+| clap | Command line argument parser | MIT OR Apache-2.0 | https://github.com/clap-rs/clap |
+| deadpool-postgres | Dead simple async pool for PostgreSQL | MIT OR Apache-2.0 | https://github.com/bikeshedder/deadpool |
+| futures | Asynchronous programming for Rust | MIT OR Apache-2.0 | https://github.com/rust-lang/futures-rs |
+| native-tls | TLS/SSL streams for Rust | MIT OR Apache-2.0 | https://github.com/sfackler/rust-native-tls |
+| postgres-native-tls | TLS support for postgres via native-tls | MIT OR Apache-2.0 | https://github.com/sfackler/rust-postgres |
+| rand | Random number generators and other randomness functionality | MIT OR Apache-2.0 | https://github.com/rust-random/rand |
+| rand_distr | Sampling from random number distributions | MIT OR Apache-2.0 | https://github.com/rust-random/rand |
+| serde | Serialization framework for Rust | MIT OR Apache-2.0 | https://github.com/serde-rs/serde |
+| tokio | Asynchronous runtime for Rust | MIT OR Apache-2.0 | https://github.com/tokio-rs/tokio |
+| tokio-postgres | Native PostgreSQL driver for Rust | MIT OR Apache-2.0 | https://github.com/sfackler/rust-postgres |
+| tracing | Application-level tracing for Rust | MIT OR Apache-2.0 | https://github.com/tokio-rs/tracing |
+| tracing-subscriber | Utilities for implementing and composing tracing subscribers | MIT OR Apache-2.0 | https://github.com/tokio-rs/tracing |
+| uuid | Generate and parse UUIDs | MIT OR Apache-2.0 | https://github.com/uuid-rs/uuid |
