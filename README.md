@@ -1,7 +1,6 @@
 # Brickhouse Brands Demo 🥤
 
-A comprehensive inventory management dashboard showcasing modern full-stack architecture with React frontend, FastAPI backend, and PostgreSQL (Lakebase) database.  
-Designed for deployment on **Databricks Apps** with local development support.
+A comprehensive inventory management dashboard showcasing modern full-stack architecture with React frontend, FastAPI backend, and PostgreSQL (Lakebase) database. Designed for deployment on **Databricks Apps** with local development support.
 
 ![Image](https://github.com/user-attachments/assets/62325616-502c-45cb-9f0c-254e20416150)
 
@@ -313,11 +312,52 @@ Databricks support doesn't cover this content. For questions or bugs, please ope
 
 ## License
 
-&copy; 2025 Databricks, Inc. All rights reserved. The source in this repository is provided subject to the Databricks License [https://databricks.com/db-license-source].  All included or referenced third party libraries are subject to the licenses set forth below.
+&copy; 2025 Databricks, Inc. All rights reserved. The source in this repository is provided subject to the [Databricks License](https://databricks.com/db-license-source).  
+All included or referenced third party libraries are subject to the licenses set forth below.
+
+### Frontend Dependencies
 
 | library                                | description             | license    | source                                              |
+|----------------------------------------|-------------------------|------------|-----------------------------------------------------|
+| react | JavaScript library for building user interfaces | MIT | https://github.com/facebook/react |
+| typescript | Typed superset of JavaScript | Apache-2.0 | https://github.com/microsoft/TypeScript |
+| vite | Next generation frontend build tool | MIT | https://github.com/vitejs/vite |
+| tailwindcss | Utility-first CSS framework | MIT | https://github.com/tailwindlabs/tailwindcss |
+| @radix-ui/react-* | Low-level UI primitives and components | MIT | https://github.com/radix-ui/primitives |
+| @tanstack/react-query | Powerful data synchronization for React | MIT | https://github.com/TanStack/query |
+| axios | Promise-based HTTP client | MIT | https://github.com/axios/axios |
+| react-router-dom | Declarative routing for React | MIT | https://github.com/remix-run/react-router |
+| react-hook-form | Performant forms with easy validation | MIT | https://github.com/react-hook-form/react-hook-form |
+| zod | TypeScript-first schema validation | MIT | https://github.com/colinhacks/zod |
+| zustand | Small, fast and scalable state management | MIT | https://github.com/pmndrs/zustand |
+| lucide-react | Beautiful and customizable SVG icons | ISC | https://github.com/lucide-icons/lucide |
+| recharts | Redefined chart library built with React and D3 | MIT | https://github.com/recharts/recharts |
+| cmdk | Fast, unstyled command menu | MIT | https://github.com/pacocoursey/cmdk |
+| class-variance-authority | CSS class variance API | Apache-2.0 | https://github.com/joe-bell/cva |
+| clsx | Utility for constructing className strings | MIT | https://github.com/lukeed/clsx |
+| date-fns | Modern JavaScript date utility library | MIT | https://github.com/date-fns/date-fns |
+
+### Backend Dependencies
+
+| library                                | description             | license    | source                                              |
+|----------------------------------------|-------------------------|------------|-----------------------------------------------------|
 | fastapi | Modern, fast web framework for building APIs with Python | MIT | https://github.com/tiangolo/fastapi |
-| pydantic | Data validation using Python type annotations (FastAPI dependency) | MIT | https://github.com/pydantic/pydantic |
-| starlette | Lightweight ASGI framework (FastAPI dependency) | BSD 3-Clause | https://github.com/encode/starlette |
-| httpx | Modern HTTP client for Python (FastAPI dependency) | BSD 3-Clause | https://github.com/encode/httpx |
-| uvicorn | Lightning-fast ASGI server (FastAPI dependency) | BSD 3-Clause | https://github.com/encode/uvicorn |
+| uvicorn | Lightning-fast ASGI server | BSD-3-Clause | https://github.com/encode/uvicorn |
+| pydantic | Data validation using Python type annotations | MIT | https://github.com/pydantic/pydantic |
+| psycopg2-binary | PostgreSQL database adapter for Python | LGPL-3.0 | https://github.com/psycopg/psycopg2 |
+| python-dotenv | Read key-value pairs from .env file | BSD-3-Clause | https://github.com/theskumar/python-dotenv |
+| python-multipart | Streaming multipart parser for Python | Apache-2.0 | https://github.com/andrew-d/python-multipart |
+| databricks-sdk | Databricks SDK for Python | Apache-2.0 | https://github.com/databricks/databricks-sdk-py |
+| databricks-sql-connector | Databricks SQL Connector for Python | Apache-2.0 | https://github.com/databricks/databricks-sql-python |
+| aiofiles | File support for asyncio | Apache-2.0 | https://github.com/Tinche/aiofiles |
+
+### Database & Data Generation Dependencies
+
+| library                                | description             | license    | source                                              |
+|----------------------------------------|-------------------------|------------|-----------------------------------------------------|
+| psycopg2-binary | PostgreSQL database adapter for Python | LGPL-3.0 | https://github.com/psycopg/psycopg2 |
+| faker | Python package that generates fake data | MIT | https://github.com/joke2k/faker |
+| tqdm | Fast, extensible progress bar for Python | MPL-2.0 & MIT | https://github.com/tqdm/tqdm |
+| python-dateutil | Extensions to the standard Python datetime module | Apache-2.0 & BSD-3-Clause | https://github.com/dateutil/dateutil |
+| numpy | Fundamental package for scientific computing | BSD-3-Clause | https://github.com/numpy/numpy |
+| black | Code formatter for Python | MIT | https://github.com/psf/black |
