@@ -1,0 +1,23 @@
+command: ["python", "startup.py"]
+
+env:
+  - name: "API_PREFIX"
+    value: "/api"
+  - name: "LOG_LEVEL"
+    value: "INFO"
+  - name: "DEBUG"
+    value: "false"
+  - name: "PYTHONPATH"
+    value: "/app"
+  - name: "DB_PORT"
+    value: 5432
+  - name: "DB_NAME"
+    value: "databricks_postgres"
+  - name: "DB_SCHEMA"
+    value: "public"
+  - name: "DB_HOST"
+    valueFrom: "db_host"
+  - name: "DB_USER"
+    valueFrom: "db_user"
+  - name: "DB_PASSWORD"
+    valueFrom: "db_password"

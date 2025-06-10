@@ -1,0 +1,37 @@
+bundle:
+  name: brickhouse-brands
+
+resources:
+  apps:
+    brickhouse_brands:
+      name: ${bundle.target}-brickhouse-brands
+      description: "Brickhouse Brands Demo Application"
+      source_code_path: "./backend"
+      resources:
+        - name: db_host
+          secret:
+            key: db_host
+            permission: "READ"
+            scope: brickhouse-scope
+        - name: db_user
+          secret:
+            key: db_user
+            permission: "READ"
+            scope: brickhouse-scope
+        - name: db_password
+          secret:
+            key: db_password
+            permission: "READ"
+            scope: brickhouse-scope
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+  
+  prod:
+    mode: production
+    workspace:
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
