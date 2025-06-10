@@ -96,7 +96,7 @@ class AppConfig:
         base_config = {
             "host": os.getenv("DB_HOST", "localhost"),
             "port": os.getenv("DB_PORT", "5432"),
-            "database": os.getenv("DB_NAME", "store_flow_analytics"),
+            "database": os.getenv("DB_NAME", "postgres"),
             "user": os.getenv("DB_USER"),
             "password": os.getenv("DB_PASSWORD"),
         }

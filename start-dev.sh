@@ -25,6 +25,40 @@ fi
 
 echo "✅ Prerequisites check passed"
 
+# Function to copy centralized env file to subdirectories
+copy_env_to_subdir() {
+    local subdir=$1
+    if [ -f ".env" ] && [ -d "$subdir" ]; then
+        echo "📋 Syncing .env to ${subdir}/"
+        cp .env "${subdir}/.env"
+    fi
+}
+
+# Sync centralized environment file to all components
+echo ""
+echo "📄 Syncing centralized environment configuration..."
+
+if [ ! -f ".env" ]; then
+    if [ -f "env.example" ]; then
+        echo "⚠️  No .env file found at project root. Creating from env.example..."
+        cp env.example .env
+        echo "📝 Please edit .env with your actual configuration values before continuing"
+    else
+        echo "❌ No .env or env.example file found at project root"
+        echo "💡 Please create a .env file with your configuration or run './setup-env.sh' first"
+        exit 1
+    fi
+else
+    echo "✅ Centralized .env file found"
+fi
+
+# Copy to all subdirectories
+copy_env_to_subdir "backend"
+copy_env_to_subdir "database" 
+copy_env_to_subdir "frontend"
+
+echo "✅ Environment files synchronized"
+
 # Check if environments are set up
 if [ ! -d "backend/venv" ] || [ ! -d "frontend/node_modules" ]; then
     echo "⚠️  Environment not fully set up. Running setup script..."
@@ -42,12 +76,6 @@ cd backend
 
 echo "🔧 Activating virtual environment..."
 source venv/bin/activate
-
-if [ ! -f ".env" ]; then
-    echo "⚠️  No .env file found. Creating from template..."
-    cp env.example .env
-    echo "📝 Please edit backend/.env with your database credentials before starting the backend"
-fi
 
 echo "🌐 Starting FastAPI server on http://localhost:8000"
 python startup.py &

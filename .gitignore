@@ -117,3 +117,6 @@ node_modules/
 # Temporary folders
 tmp/
 temp/ 
+
+# Databricks Asset Bundles
+.databricks/

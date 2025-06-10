@@ -27,6 +27,61 @@ fi
 
 echo "✅ Prerequisites check passed"
 
+# Check for centralized environment file
+echo ""
+echo "📄 Checking centralized environment configuration..."
+
+if [ ! -f ".env" ]; then
+    if [ -f "env.example" ]; then
+        echo "⚠️  No .env file found at project root. Creating from env.example..."
+        cp env.example .env
+        echo "📝 Please edit .env with your actual configuration values"
+    else
+        echo "❌ No .env or env.example file found at project root"
+        echo "💡 Please create a .env file with your configuration"
+        exit 1
+    fi
+else
+    echo "✅ Centralized .env file found"
+fi
+
+# Function to copy centralized env file to subdirectories
+copy_env_to_subdir() {
+    local subdir=$1
+    echo "📋 Copying .env to ${subdir}/"
+    if [ -d "$subdir" ]; then
+        cp .env "${subdir}/.env"
+        echo "✅ Environment file copied to ${subdir}/"
+    else
+        echo "⚠️  Directory ${subdir}/ not found, skipping..."
+    fi
+}
+
+# Setup Database Environment
+echo ""
+echo "🗄️  Setting up Database Environment..."
+cd database
+
+if [ ! -d "venv" ]; then
+    echo "📦 Creating Python virtual environment for database..."
+    python3 -m venv venv
+else
+    echo "✅ Database virtual environment already exists"
+fi
+
+echo "🔧 Activating virtual environment and installing database dependencies..."
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# Copy centralized environment file
+copy_env_to_subdir "database"
+
+echo "✅ Database environment setup complete"
+deactivate
+
+cd ..
+
 # Setup Backend Environment
 echo ""
 echo "🐍 Setting up Backend Environment..."
@@ -44,13 +99,10 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 
-if [ ! -f ".env" ]; then
-    echo "⚠️  No .env file found. Creating from template..."
-    cp env.example .env
-    echo "📝 Please edit backend/.env with your database credentials"
-else
-    echo "✅ .env file already exists"
-fi
+# Copy centralized environment file
+cd ..
+copy_env_to_subdir "backend"
+cd backend
 
 echo "✅ Backend environment setup complete"
 
@@ -68,6 +120,10 @@ else
     echo "✅ Node modules already installed"
 fi
 
+# Copy centralized environment file
+cd ..
+copy_env_to_subdir "frontend"
+
 echo "✅ Frontend environment setup complete"
 
 cd ..
@@ -75,9 +131,12 @@ cd ..
 echo ""
 echo "🎉 Environment setup completed successfully!"
 echo "=========================================="
+echo "📄 Centralized .env file copied to all components"
+echo "🗄️  Database: Python virtual environment created in database/venv"
 echo "🐍 Backend: Python virtual environment created in backend/venv"
 echo "⚛️  Frontend: Node modules installed in frontend/node_modules"
 echo ""
 echo "Next steps:"
-echo "1. Edit backend/.env with your database credentials (if needed)"
-echo "2. Run './start-dev.sh' to start the development servers" 
+echo "1. Edit the root .env file with your actual configuration values"
+echo "2. Run database setup (if needed): cd database && source venv/bin/activate && python demo_setup.py"
+echo "3. Run './start-dev.sh' to start the development servers" 
