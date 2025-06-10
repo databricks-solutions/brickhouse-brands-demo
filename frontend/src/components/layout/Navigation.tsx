@@ -9,12 +9,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Settings, LogOut, Moon, Sun, Clock } from "lucide-react";
+import { Settings, LogOut, Moon, Sun } from "lucide-react";
 import { useUserStore } from "@/store/useUserStore";
 import { useDarkModeStore } from "@/store/useDarkModeStore";
 import { useDateStore } from "@/store/useDateStore";
-import { DateConfigModal } from "@/components/ui/DateConfigModal";
-import { format } from "date-fns";
 
 interface NavigationProps {
   activeTab: 'order-management' | 'insights';
@@ -25,7 +23,6 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
   const { currentUser } = useUserStore();
   const { isDarkMode, toggleDarkMode } = useDarkModeStore();
   const { isDateConfigured, configuredDate } = useDateStore();
-  const [isDateConfigModalOpen, setIsDateConfigModalOpen] = useState(false);
 
   // Handle both snake_case (API) and camelCase field names
   const user = currentUser ? {
@@ -55,10 +52,6 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
   const handleLogout = () => {
     console.log('Logout clicked');
     // TODO: Implement logout functionality
-  };
-
-  const handleDateConfig = () => {
-    setIsDateConfigModalOpen(true);
   };
 
   return (
@@ -167,29 +160,6 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
                     )}
                     <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={handleDateConfig}
-                    className={`cursor-pointer ${isDarkMode ? 'text-gray-300 hover:text-white hover:bg-gray-700' : ''
-                      }`}
-                  >
-                    <Clock className="mr-2 h-4 w-4" />
-                    <div className="flex flex-col flex-1">
-                      <span>Configure Date</span>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge
-                          variant={isDateConfigured ? 'default' : 'secondary'}
-                          className="text-xs px-2 py-0"
-                        >
-                          {isDateConfigured ? 'Custom' : 'Real Time'}
-                        </Badge>
-                        {isDateConfigured && configuredDate && (
-                          <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {format(configuredDate instanceof Date ? configuredDate : new Date(configuredDate), 'MMM dd, yyyy')}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator className={isDarkMode ? 'bg-gray-700' : ''} />
                   <DropdownMenuItem
                     onClick={handleLogout}
@@ -205,12 +175,6 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
           </div>
         </div>
       </nav>
-
-      {/* Date Configuration Modal */}
-      <DateConfigModal
-        isOpen={isDateConfigModalOpen}
-        onClose={() => setIsDateConfigModalOpen(false)}
-      />
     </>
   );
 }; 
