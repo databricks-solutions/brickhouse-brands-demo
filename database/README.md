@@ -1,6 +1,6 @@
 # Database - PostgreSQL Schema & Data Management
 
-Database initialization and management tools for the Brickhouse Brands demo application, featuring automated schema creation and realistic demo data generation against PostgreSQL.
+Database initialization and management tools for the Brickhouse Brands demo application, featuring automated schema creation and sample demo data generation against PostgreSQL. **This is for demonstration purposes only** and should not be used for production databases.
 
 ## 📒 Table of Contents
 
@@ -201,13 +201,13 @@ python demo_setup.py \
 
 ### Data Volumes
 
-The setup script generates comprehensive demo data:
+The setup script generates sample demo data:
 
-- **Products**: 50+ beverage products across 8 categories
-- **Stores**: 20 locations (4 warehouses + 16 retail stores) across 4 US regions
-- **Users**: 24 total users (20 store managers + 4 regional managers)
-- **Inventory**: ~1,000 inventory records (products × stores)
-- **Orders**: 240K+ orders with realistic distribution and growth patterns
+- **Products**: 50+ sample beverage products across 8 categories
+- **Stores**: 20 demo locations (4 warehouses + 16 retail stores) across 4 US regions
+- **Users**: 24 demo users (20 store managers + 4 regional managers)
+- **Inventory**: ~1,000 sample inventory records (products × stores)
+- **Orders**: 240K+ sample orders with example distribution and growth patterns
 
 ### Product Categories
 
@@ -266,13 +266,13 @@ The demo includes diverse store formats:
 
 ### Order Patterns
 
-Realistic order generation with:
+Sample order generation with:
 
-- **Seasonal variations** - Higher volumes in summer months
-- **Weekly patterns** - Business days vs weekends
-- **Growth trends** - Increasing volume over time
-- **Approval workflows** - Realistic approval and fulfillment timing
-- **Store type differences** - Warehouses vs retail locations
+- **Seasonal variations** - Example higher volumes in summer months
+- **Weekly patterns** - Sample business days vs weekends
+- **Growth trends** - Example increasing volume over time
+- **Approval workflows** - Sample approval and fulfillment timing
+- **Store type differences** - Example differences between warehouses vs retail locations
 
 ## 🔄 Data Lifecycle
 
