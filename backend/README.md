@@ -1,6 +1,6 @@
 # Backend - FastAPI API Server
 
-High-performance REST API server built with FastAPI and integrated with PostgreSQL, designed for local development and production deployment on Databricks Apps.
+Demonstration REST API server built with FastAPI and integrated with PostgreSQL, designed for local development and sample deployment on Databricks Apps. **This is a demonstration application only** and is not intended for production use.
 
 ## 📒 Table of Contents
 
@@ -21,10 +21,10 @@ High-performance REST API server built with FastAPI and integrated with PostgreS
 ## 🛠️ Technology Stack
 
 - **FastAPI** - Modern, fast web framework for building APIs
-- **PostgreSQL** - Production-ready database with connection pooling
+- **PostgreSQL** - Database with connection pooling (demo setup)
 - **Pydantic** - Data validation and serialization
 - **psycopg2** - PostgreSQL database adapter
-- **Uvicorn** - ASGI server for production deployment
+- **Uvicorn** - ASGI server for demonstration deployment
 
 ## 🚀 Getting Started
 

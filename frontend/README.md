@@ -1,6 +1,6 @@
 # Frontend - Brickhouse Brands Dashboard
 
-Modern React dashboard built with TypeScript, featuring a comprehensive inventory management interface with real-time analytics and responsive design.
+Demonstration React dashboard built with TypeScript, featuring a sample inventory management interface with example analytics and responsive design. **This is a demonstration application only** and is not intended for production use.
 
 ## 📒 Table of Contents
 
@@ -224,27 +224,27 @@ export const InventoryTrendChart = ({ data }: { data: TrendData[] }) => {
 ## 🎯 Features
 
 ### Dashboard
-- Real-time KPI cards with animated counters
-- Interactive regional filtering
-- Responsive chart visualizations
-- Quick action buttons
+- Sample KPI cards with animated counters
+- Example regional filtering
+- Demo chart visualizations
+- Sample action buttons
 
 ### Inventory Management
-- Sortable and filterable data tables
-- Bulk stock level updates
-- Low stock alerts and notifications
-- Category-based organization
+- Example sortable and filterable data tables
+- Sample stock level updates
+- Demo low stock alerts and notifications
+- Sample category-based organization
 
 ### Order Management  
-- Order lifecycle tracking
-- Approval workflow interface
-- Bulk operations support
-- Status filtering and search
+- Example order lifecycle tracking
+- Demo approval workflow interface
+- Sample operations support
+- Example status filtering and search
 
 ### Store Management
-- Multi-location view
-- Performance comparison charts
-- Store type and region management
+- Sample multi-location view
+- Example performance comparison charts
+- Demo store type and region management
 
 ## 🏗️ Build and Deployment
 

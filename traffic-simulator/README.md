@@ -1,10 +1,10 @@
 # PostgreSQL Traffic Simulator
 
-A high-performance Rust application designed to simulate realistic database traffic patterns against a PostgreSQL database. This tool is specifically built to work with the Brickhouse Brands demo data model created by the `demo_setup.py` script.
+A demonstration Rust application designed to simulate sample database traffic patterns against a PostgreSQL database. This tool is specifically built to work with the Brickhouse Brands demo data model created by the `demo_setup.py` script. **This is for demonstration and educational purposes only** and should not be used for production benchmarking or load testing.
 
 ## Overview
 
-The traffic simulator generates realistic database load by executing various types of queries (SELECT, INSERT, UPDATE) against a PostgreSQL database containing beverage industry order management data. It supports both maximum throughput testing and real-world traffic pattern simulation.
+The traffic simulator demonstrates database load patterns by executing various types of queries (SELECT, INSERT, UPDATE) against a PostgreSQL database containing sample beverage industry order management data. It showcases different traffic patterns and provides example performance metrics for educational purposes.
 
 ## Features
 
@@ -14,18 +14,18 @@ The traffic simulator generates realistic database load by executing various typ
 - **Duration-Based Execution**: Run simulations for specified time periods
 - **Warmup Periods**: Allow database and connection pool warmup before measurement
 
-### 🌊 **Real-World Traffic Patterns**
-- **Business Hours Simulation**: Gradual ramp-up, steady daytime traffic, and ramp-down
-- **E-Commerce Rush Simulation**: Sudden traffic spikes with calm periods
-- **Nightly Batch Simulation**: Low activity with periodic high-intensity bursts
+### 🌊 **Sample Traffic Patterns**
+- **Business Hours Demo**: Gradual ramp-up, steady daytime traffic, and ramp-down
+- **E-Commerce Rush Demo**: Sudden traffic spikes with calm periods
+- **Nightly Batch Demo**: Low activity with periodic high-intensity bursts
 - **Traffic Intensity Levels**: Low (10-30%), Medium (40-70%), High (80-95%), Peak (95-100%)
 
-### 📊 **Performance Metrics**
-- **Throughput**: Queries per second (QPS)
-- **Latency Analysis**: Min, max, average, P50, P95, P99 latencies
-- **Connection Efficiency**: Connection acquisition vs. query execution time
-- **Network Baseline**: Separate network latency from database processing time
-- **Success/Failure Rates**: Track query success and failure counts
+### 📊 **Sample Performance Metrics**
+- **Throughput**: Example queries per second (QPS)
+- **Latency Analysis**: Min, max, average, P50, P95, P99 latencies (for demonstration)
+- **Connection Efficiency**: Example connection acquisition vs. query execution time
+- **Network Baseline**: Sample network latency measurement
+- **Success/Failure Rates**: Example query success and failure tracking
 
 ### 🎯 **Database Operations**
 
