@@ -290,7 +290,9 @@ The setup script follows a structured approach:
 
 ### Analytics Schema
 
-The setup creates a dedicated `analytics` schema with pre-built materialized views for dashboard performance.
+The setup creates materialized views in a dedicated `analytics` schema for dashboard performance. The analytics schema must be created by an admin user before running the setup script.
+
+**Note**: The analytics schema is created by the admin user during the initial database setup, and the service account is granted usage permissions on this schema.
 
 ### Materialized Views
 
@@ -448,6 +450,8 @@ REFRESH MATERIALIZED VIEW analytics.low_stock_alerts;
 
 ### Database User Management
 
+> If you are using Lakebase Postgres, please ensure that `Postgres Native Role Login = Enabled` - this may require a restart of your Lakebase instance once updated in order to support static username & password based credentials.
+
 We recommend creating a dedicated service account for database interactions:
 
 ```sql
@@ -459,10 +463,14 @@ CREATE USER api_service_account WITH
     NOCREATEROLE;
 
 -- Grant database connection
-GRANT CONNECT ON DATABASE postgres TO api_service_account;
+GRANT CONNECT ON DATABASE databricks_postgres TO api_service_account;
 
--- Grant schema usage
-GRANT USAGE ON SCHEMA public TO api_service_account;
+-- Create analytics schema (admin only - requires CREATE privileges)
+CREATE SCHEMA IF NOT EXISTS analytics;
+
+-- Grant schema usage and create permissions
+GRANT USAGE, CREATE ON SCHEMA public TO api_service_account;
+GRANT USAGE, CREATE ON SCHEMA analytics TO api_service_account;
 
 -- Grant table permissions
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO api_service_account;
@@ -477,6 +485,10 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO api_service_account;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public 
 GRANT USAGE, SELECT ON SEQUENCES TO api_service_account;
 
+-- Grant analytics schema permissions for materialized views
+ALTER DEFAULT PRIVILEGES IN SCHEMA analytics 
+GRANT SELECT ON TABLES TO api_service_account;
+
 -- Create read-only user for analytics
 CREATE USER analytics_user WITH 
     ENCRYPTED PASSWORD 'analytics_password'
@@ -484,7 +496,7 @@ CREATE USER analytics_user WITH
     NOCREATEDB 
     NOCREATEROLE;
 
-GRANT CONNECT ON DATABASE postgres TO analytics_user;
+GRANT CONNECT ON DATABASE databricks_postgres TO analytics_user;
 GRANT USAGE ON SCHEMA public TO analytics_user;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO analytics_user;
 GRANT USAGE ON SCHEMA analytics TO analytics_user;
