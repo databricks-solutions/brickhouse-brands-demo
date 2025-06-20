@@ -149,6 +149,8 @@ vim .env  # or your preferred editor
 
 #### Create Database Service Account (Recommended)
 
+> If you are using Lakebase Postgres, please ensure that `Postgres Native Role Login = Enabled` - this may require a restart of your Lakebase instance once updated in order to support static username & password based credentials.
+
 We recommend creating a dedicated service account for database interactions:
 
 ```sql
@@ -162,8 +164,12 @@ CREATE USER api_service_account WITH
 -- Grant database connection
 GRANT CONNECT ON DATABASE databricks_postgres TO api_service_account;
 
--- Grant schema usage
-GRANT USAGE ON SCHEMA public TO api_service_account;
+-- Create analytics schema (admin only - requires CREATE privileges)
+CREATE SCHEMA IF NOT EXISTS analytics;
+
+-- Grant schema usage and create permissions
+GRANT USAGE, CREATE ON SCHEMA public TO api_service_account;
+GRANT USAGE, CREATE ON SCHEMA analytics TO api_service_account;
 
 -- Grant table permissions
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO api_service_account;
@@ -177,6 +183,10 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO api_service_account;
 
 ALTER DEFAULT PRIVILEGES IN SCHEMA public 
 GRANT USAGE, SELECT ON SEQUENCES TO api_service_account;
+
+-- Grant analytics schema permissions for materialized views
+ALTER DEFAULT PRIVILEGES IN SCHEMA analytics 
+GRANT SELECT ON TABLES TO api_service_account;
 ```
 
 Update your `.env` file to use the service account credentials:

@@ -2209,10 +2209,7 @@ def setup_analytics():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Create analytics schema
-    cursor.execute("CREATE SCHEMA IF NOT EXISTS analytics;")
-
-    # Create materialized views
+    # Create materialized views - assuming analytics schema already exists
     cursor.execute(
         """
         CREATE MATERIALIZED VIEW IF NOT EXISTS analytics.inventory_summary AS
